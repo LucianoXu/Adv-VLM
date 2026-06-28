@@ -1,0 +1,18 @@
+# Adv-VLM — Python dependencies
+# Python 3.12. Create the environment with:
+#   python3 -m venv .venv && source .venv/bin/activate
+#   pip install -r requirements.txt
+
+torch>=2.3.0
+transformers>=4.44.0
+accelerate>=0.33.0         # device_map / efficient model loading
+
+pillow>=10.0.0             # image inputs
+sentencepiece>=0.2.0       # LLaMA/LLaVA tokenizer
+protobuf>=4.25.0           # tokenizer/model serialization
+
+numpy>=1.26.0
+pyyaml>=6.0
+python-dotenv>=1.0.0
+
+ipykernel>=6.29.0
