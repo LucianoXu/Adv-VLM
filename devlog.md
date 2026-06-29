@@ -7,6 +7,8 @@ Caveat: I found that the classification accuracy is very sensitive on the prompt
 
 Successfully built the abstraction in task framework for VLM, ImageClass. Accuracy of LLaVA 1.5 on Imagenette raises to near 1.
 
+Setup on Raven cluster.
+
 ## June 28
 
 Decided on the project direction.

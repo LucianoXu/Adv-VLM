@@ -104,6 +104,8 @@ celerybeat.pid
 # Environments
 .env
 .venv
+.pip-cache/
+.pip-install.log
 env/
 venv/
 ENV/
@@ -153,3 +155,8 @@ offload/
 
 
 test.ipynb
+# SLURM job logs
+scripts/logs/
+
+# local datasets
+dataset/

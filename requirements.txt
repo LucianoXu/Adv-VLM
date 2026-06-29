@@ -1,10 +1,12 @@
 # Adv-VLM — Python dependencies
-# Python 3.12. Create the environment with:
+# Python 3.13 (MPCDF Raven: `module load python-waterboa/2025.06`).
+# Create the environment with:
+#   module load python-waterboa/2025.06
 #   python3 -m venv .venv && source .venv/bin/activate
 #   pip install -r requirements.txt
 
-torch>=2.3.0
-torchvision>=0.18.0        # fast (tensor-based) CLIP image processor backend
+torch>=2.5.0               # first release with Python 3.13 wheels
+torchvision>=0.20.0        # fast (tensor-based) CLIP image processor backend
 transformers>=4.44.0
 accelerate>=0.33.0         # device_map / efficient model loading
 datasets>=2.20.0           # benchmark loading (e.g. ImageNet-1k val)

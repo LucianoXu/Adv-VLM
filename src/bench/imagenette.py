@@ -1,6 +1,6 @@
 import torch
 from tqdm import tqdm
-from datasets import load_dataset
+from datasets import load_dataset, load_from_disk
 from ..envvar import require_hf_token
 from ..model.interface import VLM
 from ..image import raw2resized, resized2image01
@@ -21,13 +21,21 @@ SYNSET2NAME = {
 }
 
 class Imagenette(ImageClass):
-    def __init__(self):
-        self.HF_TOKEN = require_hf_token()
-        self.ds = load_dataset(
-            "johnowhitaker/imagenette2-320", 
-            split="train", streaming=False, 
-            token=self.HF_TOKEN
-        )
+    HF_REPO = "johnowhitaker/imagenette2-320"
+
+    def __init__(self, local_path: str | None = None):
+        '''
+        local_path: if given, load the dataset from this on-disk path
+        '''
+        if local_path is not None:
+            self.ds = load_from_disk(local_path)
+        else:
+            self.HF_TOKEN = require_hf_token()
+            self.ds = load_dataset(
+                self.HF_REPO,
+                split="train", streaming=False,
+                token=self.HF_TOKEN
+            )
         self.class_synsets = self.ds.features["label"].names
         self.label_texts = [SYNSET2NAME[s] for s in self.class_synsets]
 
