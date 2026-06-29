@@ -29,16 +29,21 @@ class VLM(ABC):
 
     @abstractmethod
     def loglikelyhood_classify(
-            self, 
+            self,
             question: str,
             answer_priming: str,
-            img: torch.Tensor,  # shape: (N, C, H, W)
+            image01s: torch.Tensor,  # shape: (N, C, H, W), values in [0, 1]
             candidates: list[str],
+            differentiable: bool = False,
         ) -> torch.Tensor:
         '''
         Evaluate the classification by teacher forcing on the candidates.
 
         All examples will be processed in one batch.
+
+        If differentiable is True, grad is forced on and gradients flow back to
+        image01s (use for gradient-based attacks); otherwise the forward runs under
+        torch.no_grad().
 
         Return a tensor of average log likelyhood. Shape (N, X). N is the number of examples, and X is the number of candidates.
         '''

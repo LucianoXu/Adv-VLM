@@ -63,71 +63,76 @@ class LLaVA(VLM):
         return(self.tok.decode(new_tokens))
 
 
-    @torch.no_grad()
     def loglikelyhood_classify(
             self, 
             question: str,
             answer_priming: str,
             image01s: torch.Tensor,
             candidates: list[str],
+            differentiable: bool = False,
         ) -> torch.Tensor:
 
-        img_tensor = image012pixel_values(image01s).to(self.device)
+        ctx = torch.enable_grad if differentiable else torch.no_grad
 
-        N = len(img_tensor)
+        with ctx():
 
-        text = f"USER: <image>\n{question}\n ASSISTANT:{answer_priming}"
-        ids = self.tok(text, return_tensors="pt").input_ids[0]   # BOS is added here
+            img_tensor = image012pixel_values(image01s).to(self.device)
 
-        # expand the placeholders for image tokens
-        pos = (ids == self.IMAGE_TOKEN_ID).nonzero()[0, 0].item()
-        input_ids = torch.cat([ids[:pos],
-                            ids.new_full((self.NUM_IMAGE_TOKENS,), self.IMAGE_TOKEN_ID),
-                            ids[pos+1:]])[None].to(self.device)
+            N = len(img_tensor)
 
-        # N copies for batched inference
-        L_prefix = input_ids.shape[1]
-        input_ids = input_ids.expand(N, L_prefix)
+            text = f"USER: <image>\n{question}\n ASSISTANT:{answer_priming}"
+            ids = self.tok(text, return_tensors="pt").input_ids[0]   # BOS is added here
 
-        # precompute the common prefix
+            # expand the placeholders for image tokens
+            pos = (ids == self.IMAGE_TOKEN_ID).nonzero()[0, 0].item()
+            input_ids = torch.cat([ids[:pos],
+                                ids.new_full((self.NUM_IMAGE_TOKENS,), self.IMAGE_TOKEN_ID),
+                                ids[pos+1:]])[None].to(self.device)
 
-        prefix_out = self.model(
-            input_ids=input_ids,
-            attention_mask=torch.ones_like(input_ids),
-            pixel_values=img_tensor,
-            past_key_values=None,
-            use_cache=True,
-        )
+            # N copies for batched inference
+            L_prefix = input_ids.shape[1]
+            input_ids = input_ids.expand(N, L_prefix)
 
-        cache = prefix_out.past_key_values
-        first_logp = prefix_out.logits[:, -1, :].log_softmax(-1)
+            # precompute the common prefix
 
-        # scores for different labels
-        scores = []
-        for lab in candidates:
-            lab_ids = self.tok(lab, add_special_tokens=False, return_tensors="pt").input_ids.to(self.device)
-            L_lab = lab_ids.shape[1]
-            lab_ids = lab_ids.expand(N, L_lab)
-            lp0 = first_logp.gather(1, lab_ids[:, :1])  # (N, 1)
+            prefix_out = self.model(
+                input_ids=input_ids,
+                attention_mask=torch.ones_like(input_ids),
+                pixel_values=img_tensor,
+                past_key_values=None,
+                use_cache=True,
+            )
 
-            if L_lab > 1:
-                out = self.model(
-                    input_ids = lab_ids,
-                    attention_mask = torch.ones(N, L_prefix + L_lab, device=self.device),
-                    pixel_values=None,
-                    past_key_values=prefix_out.past_key_values,
-                    use_cache=True,
-                )
+            cache = prefix_out.past_key_values
+            first_logp = prefix_out.logits[:, -1, :].log_softmax(-1)
 
-                
-                rest_logp = out.logits[:, :-1, :].log_softmax(-1).gather(2, lab_ids[:, 1:, None]).squeeze(-1) # (N, L_lab-1)
-                lp = torch.cat([lp0, rest_logp], dim=1)
+            # scores for different labels
+            scores = []
+            for lab in candidates:
+                lab_ids = self.tok(lab, add_special_tokens=False, return_tensors="pt").input_ids.to(self.device)
+                L_lab = lab_ids.shape[1]
+                lab_ids = lab_ids.expand(N, L_lab)
+                lp0 = first_logp.gather(1, lab_ids[:, :1])  # (N, 1)
 
-                # reset the KV cache (the cache operation is in place)
-                cache.crop(L_prefix)
-            else:
-                lp = lp0
+                if L_lab > 1:
+                    out = self.model(
+                        input_ids = lab_ids,
+                        attention_mask = torch.ones(N, L_prefix + L_lab, device=self.device),
+                        pixel_values=None,
+                        past_key_values=prefix_out.past_key_values,
+                        use_cache=True,
+                    )
 
-            scores.append(lp.mean(dim=1))
+                    
+                    rest_logp = out.logits[:, :-1, :].log_softmax(-1).gather(2, lab_ids[:, 1:, None]).squeeze(-1) # (N, L_lab-1)
+                    lp = torch.cat([lp0, rest_logp], dim=1)
 
-        return torch.stack(scores, dim=1)   # (N, X)
+                    # reset the KV cache (the cache operation is in place)
+                    cache.crop(L_prefix)
+                else:
+                    lp = lp0
+
+                scores.append(lp.mean(dim=1))
+
+            return torch.stack(scores, dim=1)   # (N, X)
+        

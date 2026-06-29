@@ -7,7 +7,12 @@ from transformers.image_utils import PILImageResampling
 from transformers.utils.constants import OPENAI_CLIP_MEAN, OPENAI_CLIP_STD
 
 from PIL import Image
+import numpy as np
 import torch
+
+# CLIP normalization constants as (1, 3, 1, 1) tensors for broadcasting over (N, C, H, W)
+CLIP_MEAN = torch.tensor(OPENAI_CLIP_MEAN).view(1, 3, 1, 1)
+CLIP_STD = torch.tensor(OPENAI_CLIP_STD).view(1, 3, 1, 1)
 
 # concepts:
 # raw image (the original image in Image.Image type)
@@ -67,32 +72,21 @@ def raw2resized(imgs: Image.Image | list[Image.Image]) -> list[Image.Image]:
     return [Image.fromarray(array.permute(1, 2, 0).numpy()) for array in res]
 
 def resized2image01(imgs: Image.Image | list[Image.Image]) -> torch.Tensor:
-    img_preproc = get_img_preproc()
+    if isinstance(imgs, Image.Image):
+        imgs = [imgs]
 
-    res = img_preproc(
-        images = imgs,
-        do_resize = False,
-        do_center_crop = False,
-        do_rescale = True,
-        do_normalize = False,
-        return_tensors="pt"
-    )['pixel_values']
+    tensors = []
+    for im in imgs:
+        arr = np.array(im.convert("RGB"))                   # (H, W, 3) uint8 (writable copy)
+        t = torch.from_numpy(arr).permute(2, 0, 1).float() / 255.0
+        tensors.append(t)
 
-    return res
+    return torch.stack(tensors, dim=0)
 
 def image012pixel_values(imgs: torch.Tensor) -> torch.Tensor:
-    img_preproc = get_img_preproc()
-
-    res = img_preproc(
-        images = imgs,
-        do_resize = False,
-        do_center_crop = False,
-        do_rescale = False,
-        do_normalize = True,
-        return_tensors="pt"
-    )['pixel_values']
-
-    return res
+    mean = CLIP_MEAN.to(device=imgs.device, dtype=imgs.dtype)
+    std = CLIP_STD.to(device=imgs.device, dtype=imgs.dtype)
+    return (imgs - mean) / std
 
 def image012resized(ts: torch.Tensor) -> list[Image.Image]:
     res = []
