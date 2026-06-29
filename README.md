@@ -16,7 +16,7 @@
 - `report/`: the final latex report
 - `src/`: python source files
 - `scripts/`: script files for all jobs
-- `templates/`: task configuration templates
+- `configs/`: task configuration templates
 - `.env`: environment variable configuration (gitignored)
 - `devlog.md`: development and progress log
 - `cookbook.ipynb`: push-button experiment cookbooks

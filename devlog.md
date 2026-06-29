@@ -3,7 +3,9 @@
 Started to design the framework for VLM, including generation, evaluation and attack training.
 Identified four stage of images: raw, resized, image01, and pixel_value. Attack happens at image01 stage.
 
-Caveat: I found that the classification accuracy is very sensitive on the prompt. For example, the trailing space. Also the currenct mean log-likelyhood approach has a bais on long, predictable sequence.
+Caveat: I found that the classification accuracy is very sensitive on the prompt. For example, the trailing space.
+
+Successfully built the abstraction in task framework for VLM, ImageClass. Accuracy of LLaVA 1.5 on Imagenette raises to near 1.
 
 ## June 28
 

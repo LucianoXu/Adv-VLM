@@ -1,1 +1,1 @@
-from .llava import LLaVA
+from .factory import VLM_factory

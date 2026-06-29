@@ -1,22 +1,19 @@
 from typing import Any
-from pathlib import Path
-import torch
 
-from transformers import PreTrainedTokenizerBase, AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
-from transformers.generation.utils import GenerationMixin
+from .interface import VLM
 
-from ..utils import load_yaml_config
 
-# def model_factory(model_args: dict[str, Any] | str | Path) -> tuple[PreTrainedTokenizerBase, GenerationMixin]:
+def VLM_factory(vlm_args: dict) -> VLM:
 
-#     print(" >> Model Factory for", model_args)
+    print(" >> Creating VLM with arguments: ", vlm_args)
 
-#     if isinstance(model_args, (str, Path)):
-#         model_args = load_yaml_config(model_args)
+    vlm_name = vlm_args['name']
 
-#     if model_args["model_name"] == "LLaVA":
-#         pass
+    if vlm_name == "LLaVA":
+
+        from .llava import LLaVA
+        device = vlm_args['device']
+        return LLaVA(device=device)
     
-#     else:
-#         raise ValueError("Invalid Model Name: ", model_args["model_name"])
-    
+    else:
+        raise ValueError("Invalid VLM name:", vlm_name)

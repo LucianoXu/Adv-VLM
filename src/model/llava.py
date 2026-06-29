@@ -3,7 +3,7 @@ import torch
 from PIL import Image
 from ..image import resized2image01, image012pixel_values
 
-from transformers import PreTrainedTokenizerBase, PreTrainedModel, AutoTokenizer, AutoModelForMultimodalLM
+from transformers import AutoTokenizer, AutoModelForMultimodalLM
 
 from .interface import VLM
 
@@ -19,8 +19,8 @@ class LLaVA(VLM):
         self.tok = AutoTokenizer.from_pretrained("llava-hf/llava-1.5-7b-hf")
         self.model = AutoModelForMultimodalLM.from_pretrained("llava-hf/llava-1.5-7b-hf")
 
-        if device is not None:
-            self.model.to(device)
+        if self.device is not None:
+            self.model.to(self.device)
 
 
     def gen(self, img: Image.Image, question: str, answer_priming: str = "", max_new_tokens = 64) -> str:
@@ -68,11 +68,11 @@ class LLaVA(VLM):
             self, 
             question: str,
             answer_priming: str,
-            imgs: list[Image.Image], # resized photos
+            image01s: torch.Tensor,
             candidates: list[str],
         ) -> torch.Tensor:
 
-        img_tensor = image012pixel_values(resized2image01(imgs)).to(self.device)
+        img_tensor = image012pixel_values(image01s).to(self.device)
 
         N = len(img_tensor)
 

@@ -1,0 +1,14 @@
+
+- output_dir: trials/llava-imagenette-test
+  task_type: VLM-ImageClass
+  vlm:
+    name: LLaVA
+    device: auto
+  benchmark:
+    name: imagenette
+  question: "What is the main object in this photo?\nOptions: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute."
+  answer_priming: "The main object in this photo:"
+  batch_size: 4
+  limit: 64
+  shuffle: true
+  seed: 42

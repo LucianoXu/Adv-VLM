@@ -6,7 +6,7 @@ import logging
 import json
 import yaml
 
-def load_yaml_config(path: str | Path) -> dict[str, Any]:
+def load_yaml_config(path: str | Path) -> dict[str, Any] | list[Any]:
 
     path = Path(path)
 
@@ -18,9 +18,9 @@ def load_yaml_config(path: str | Path) -> dict[str, Any]:
 
         return {}
 
-    if not isinstance(data, dict):
+    if not isinstance(data, (dict, list)):
 
-        raise ValueError(f"Expected YAML top-level object to be a dict, got {type(data).__name__}")
+        raise ValueError(f"Expected YAML top-level object to be a dict or list, got {type(data).__name__}")
 
     return data
 
@@ -63,6 +63,12 @@ class _Tee:
     def flush(self) -> None:
         for s in self._streams:
             s.flush()
+
+    def close(self) -> None:
+        # no-op: we don't own the underlying streams (real stdout/stderr and the
+        # log file, which `tee_console` closes itself). This exists so that the
+        # logging module's shutdown handler doesn't raise AttributeError at exit.
+        pass
 
 
 @contextmanager
@@ -161,6 +167,25 @@ def collect_environment() -> dict[str, Any]:
             env["libraries"][pkg] = None
 
     return env
+
+
+def resolve_device(device: str | None) -> str | None:
+    '''
+    Resolve "auto" to a concrete device
+    '''
+    import torch
+
+    if device != "auto":
+        return device
+
+    if torch.cuda.is_available():
+        return "cuda"
+
+    mps = getattr(torch.backends, "mps", None)
+    if mps is not None and mps.is_available():
+        return "mps"
+
+    return "cpu"
 
 
 def seed_everything(seed: int):

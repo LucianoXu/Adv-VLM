@@ -4,16 +4,18 @@ from abc import ABC, abstractmethod
 
 import torch
 
+from ..utils import resolve_device
+
 
 class VLM(ABC):
     '''
     Abstract VLM interface. Limit for one round chat with one image.
     '''
 
-    device: str
+    device: str | None
 
-    def __init__(self, device: str):
-        self.device = device
+    def __init__(self, device: str | None):
+        self.device = resolve_device(device)
     
     @abstractmethod
     def gen(self, img: Image.Image, question: str, answer_priming: str = "", max_new_tokens = 64) -> str:

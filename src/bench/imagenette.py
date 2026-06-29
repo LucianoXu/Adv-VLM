@@ -3,7 +3,8 @@ from tqdm import tqdm
 from datasets import load_dataset
 from ..envvar import require_hf_token
 from ..model.interface import VLM
-from ..image import raw2resized, resized2image01, image012pixel_values
+from ..image import raw2resized, resized2image01
+from .interface import ImageClass
 
 # maps Imagenette labels to readable text
 SYNSET2NAME = {
@@ -19,7 +20,7 @@ SYNSET2NAME = {
     "n03888257": "parachute",
 }
 
-class Imagenette:
+class Imagenette(ImageClass):
     def __init__(self):
         self.HF_TOKEN = require_hf_token()
         self.ds = load_dataset(
@@ -30,9 +31,10 @@ class Imagenette:
         self.class_synsets = self.ds.features["label"].names
         self.label_texts = [SYNSET2NAME[s] for s in self.class_synsets]
 
-    def loader(self, batch_size: int, limit: int | None = None, shuffle: bool = False):
-        # return image01 and labels
+    def loader(self, batch_size: int, limit: int | None = None, shuffle: bool = False, seed: int = 42):
+        # return image01, labels (torch.Long), indices
 
+        torch.manual_seed(seed)
         idx = list(range(len(self.ds)))
         if shuffle:
             idx = torch.randperm(len(self.ds)).tolist()   # torch.manual_seed(...) for reproducibility
@@ -58,7 +60,8 @@ class Imagenette:
             batch_size: int,
             limit: int | None = None,
             shuffle: bool = False,
-        ):
+            seed: int = 42
+        ) -> dict:
 
         '''
         Return: a dictionary with the following key-values:
@@ -84,15 +87,14 @@ class Imagenette:
         n_batches = (n_eval + batch_size - 1) // batch_size   # ceil
 
         for image01, labels, indices in tqdm(
-            self.loader(batch_size=batch_size, limit=limit, shuffle=shuffle),
-            total=n_batches, desc="eval_classify_lp",
+            self.loader(batch_size=batch_size, limit=limit, shuffle=shuffle, seed=seed),
+            total=n_batches, desc="eval_classify_lp"
         ):
-            pixel_values = image012pixel_values(image01).to(vlm.device)
 
             scores = vlm.loglikelyhood_classify(
                 question,
                 answer_priming,
-                pixel_values,
+                image01.to(vlm.device),
                 self.label_texts,
             )   # (B, #labels)
 
