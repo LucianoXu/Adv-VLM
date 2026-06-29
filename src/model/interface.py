@@ -35,6 +35,7 @@ class VLM(ABC):
             image01s: torch.Tensor,  # shape: (N, C, H, W), values in [0, 1]
             candidates: list[str],
             differentiable: bool = False,
+            grad_candidates: list[int] | None = None,
         ) -> torch.Tensor:
         '''
         Evaluate the classification by teacher forcing on the candidates.
@@ -44,6 +45,9 @@ class VLM(ABC):
         If differentiable is True, grad is forced on and gradients flow back to
         image01s (use for gradient-based attacks); otherwise the forward runs under
         torch.no_grad().
+
+        grad_candidates: indices of the candidates
+        whose scores carry a gradient back to image01s
 
         Return a tensor of average log likelyhood. Shape (N, X). N is the number of examples, and X is the number of candidates.
         '''
