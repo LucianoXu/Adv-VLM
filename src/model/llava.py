@@ -19,6 +19,11 @@ class LLaVA(VLM):
         self.tok = AutoTokenizer.from_pretrained("llava-hf/llava-1.5-7b-hf")
         self.model = AutoModelForMultimodalLM.from_pretrained("llava-hf/llava-1.5-7b-hf")
 
+        # attacks optimize the image, not the weights: freezing params stops backward
+        self.model.requires_grad_(False)
+        self.model.gradient_checkpointing_enable()
+        self.model.eval()
+
         if self.device is not None:
             self.model.to(self.device)
 
@@ -64,13 +69,18 @@ class LLaVA(VLM):
 
 
     def loglikelyhood_classify(
-            self, 
+            self,
             question: str,
             answer_priming: str,
             image01s: torch.Tensor,
             candidates: list[str],
             differentiable: bool = False,
+            grad_candidates: list[int] | None = None,
         ) -> torch.Tensor:
+        '''
+        grad_candidates: Indices of the
+        candidates whose scores must carry a gradient back to image01s
+        '''
 
         ctx = torch.enable_grad if differentiable else torch.no_grad
 
@@ -93,46 +103,79 @@ class LLaVA(VLM):
             L_prefix = input_ids.shape[1]
             input_ids = input_ids.expand(N, L_prefix)
 
-            # precompute the common prefix
+            if differentiable:
+                # Attack path: no KV cache 
+                grad_set = set(range(len(candidates))) if grad_candidates is None else set(grad_candidates)
+                was_training = self.model.training
+                try:
+                    scores = []
+                    for i, lab in enumerate(candidates):
+                        needs_grad = i in grad_set
+                        self.model.train(needs_grad)   # checkpointing engages only in train mode; dropouts are 0
+                        cand_ctx = torch.enable_grad if needs_grad else torch.no_grad
+                        with cand_ctx():
+                            lab_ids = self.tok(lab, add_special_tokens=False, return_tensors="pt").input_ids.to(self.device)
+                            L_lab = lab_ids.shape[1]
+                            lab_ids = lab_ids.expand(N, L_lab)
 
-            prefix_out = self.model(
-                input_ids=input_ids,
-                attention_mask=torch.ones_like(input_ids),
-                pixel_values=img_tensor,
-                past_key_values=None,
-                use_cache=True,
-            )
+                            full_ids = torch.cat([input_ids, lab_ids], dim=1)   # (N, L_prefix + L_lab)
+                            out = self.model(
+                                input_ids=full_ids,
+                                attention_mask=torch.ones_like(full_ids),
+                                pixel_values=img_tensor,
+                                past_key_values=None,
+                                use_cache=False,
+                            )
 
-            cache = prefix_out.past_key_values
-            first_logp = prefix_out.logits[:, -1, :].log_softmax(-1)
+                            # logit at position (L_prefix-1 + k) predicts label token k
+                            logits = out.logits[:, L_prefix - 1: L_prefix + L_lab - 1, :]            # (N, L_lab, V)
+                            lp = logits.log_softmax(-1).gather(2, lab_ids[:, :, None]).squeeze(-1)   # (N, L_lab)
+                            scores.append(lp.mean(dim=1))
 
-            # scores for different labels
-            scores = []
-            for lab in candidates:
-                lab_ids = self.tok(lab, add_special_tokens=False, return_tensors="pt").input_ids.to(self.device)
-                L_lab = lab_ids.shape[1]
-                lab_ids = lab_ids.expand(N, L_lab)
-                lp0 = first_logp.gather(1, lab_ids[:, :1])  # (N, 1)
+                    return torch.stack(scores, dim=1)   # (N, X)
+                finally:
+                    self.model.train(was_training)
 
-                if L_lab > 1:
-                    out = self.model(
-                        input_ids = lab_ids,
-                        attention_mask = torch.ones(N, L_prefix + L_lab, device=self.device),
-                        pixel_values=None,
-                        past_key_values=prefix_out.past_key_values,
-                        use_cache=True,
-                    )
+            else:
+                # precompute the common prefix
 
-                    
-                    rest_logp = out.logits[:, :-1, :].log_softmax(-1).gather(2, lab_ids[:, 1:, None]).squeeze(-1) # (N, L_lab-1)
-                    lp = torch.cat([lp0, rest_logp], dim=1)
+                prefix_out = self.model(
+                    input_ids=input_ids,
+                    attention_mask=torch.ones_like(input_ids),
+                    pixel_values=img_tensor,
+                    past_key_values=None,
+                    use_cache=True,
+                )
 
-                    # reset the KV cache (the cache operation is in place)
-                    cache.crop(L_prefix)
-                else:
-                    lp = lp0
+                cache = prefix_out.past_key_values
+                first_logp = prefix_out.logits[:, -1, :].log_softmax(-1)
 
-                scores.append(lp.mean(dim=1))
+                # scores for different labels
+                scores = []
+                for lab in candidates:
+                    lab_ids = self.tok(lab, add_special_tokens=False, return_tensors="pt").input_ids.to(self.device)
+                    L_lab = lab_ids.shape[1]
+                    lab_ids = lab_ids.expand(N, L_lab)
+                    lp0 = first_logp.gather(1, lab_ids[:, :1])  # (N, 1)
 
-            return torch.stack(scores, dim=1)   # (N, X)
-        
+                    if L_lab > 1:
+                        out = self.model(
+                            input_ids = lab_ids,
+                            attention_mask = torch.ones(N, L_prefix + L_lab, device=self.device),
+                            pixel_values=None,
+                            past_key_values=prefix_out.past_key_values,
+                            use_cache=True,
+                        )
+
+
+                        rest_logp = out.logits[:, :-1, :].log_softmax(-1).gather(2, lab_ids[:, 1:, None]).squeeze(-1) # (N, L_lab-1)
+                        lp = torch.cat([lp0, rest_logp], dim=1)
+
+                        # reset the KV cache (the cache operation is in place)
+                        cache.crop(L_prefix)
+                    else:
+                        lp = lp0
+
+                    scores.append(lp.mean(dim=1))
+
+                return torch.stack(scores, dim=1)   # (N, X)
