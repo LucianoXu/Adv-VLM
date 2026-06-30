@@ -7,6 +7,8 @@ And I found that the adversarial example has some kind of unstable generalizatio
 
 Built the attack generation on image01 / resized images. Output the adversarial benchmark.
 
+Added CLIP encoder image classification.
+
 ## June 29
 
 Started to design the framework for VLM, including generation, evaluation and attack training.

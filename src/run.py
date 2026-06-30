@@ -61,6 +61,9 @@ def run(args: list | dict[str, Any] | str | Path) -> Any:
             elif args["task_type"] == "VLM-ImageClass-attack":
                 res = task_VLM_ImageClass_attack(args)
 
+            elif args["task_type"] == "CLIP-ImageClass":
+                res = task_CLIP_ImageClass(args)
+
             else:
                 raise ValueError("Invalid Config Type.")
 
@@ -106,6 +109,51 @@ def task_VLM_ImageClass(
 
     # split the result
     tensor_keys = ["indices", "preds", "correct_labels", "logprobs"]
+    tensors = {k: res[k] for k in tensor_keys}
+    summary = {k: v for k, v in res.items() if k not in tensor_keys}
+
+    # readable summary
+    save_json(summary, output_dir / "results.json")
+
+    # per-example tensors for downstream analysis
+    torch.save(tensors, output_dir / "tensors.pt")
+
+    print(f" >> Saved results to {output_dir} (accuracy={res['accuracy']:.4f})")
+
+    return res
+
+
+def task_CLIP_ImageClass(
+    args: dict
+):
+    print(" >> Start CLIP ImageClass Zero-shot Classification Task")
+
+    from .model.clip import CLIP
+    from .bench import ImageClass_factory
+
+    clip_args = args['clip']
+    clip = CLIP(device=clip_args.get('device', 'auto'))
+
+    imageclass_args = args['benchmark']
+    imageclass = ImageClass_factory(imageclass_args)
+
+    batch_size = args['batch_size']
+    limit = args['limit']
+    shuffle = args['shuffle']
+    seed = args['seed']
+
+    res = imageclass.eval_classify_clip(
+        clip,
+        batch_size,
+        limit,
+        shuffle,
+        seed
+    )
+
+    output_dir = Path(args['output_dir'])
+
+    # split the result
+    tensor_keys = ["indices", "preds", "correct_labels", "logits"]
     tensors = {k: res[k] for k in tensor_keys}
     summary = {k: v for k, v in res.items() if k not in tensor_keys}
 

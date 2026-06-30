@@ -1,0 +1,12 @@
+
+- output_dir: trials/clip-imagenette-test
+  task_type: CLIP-ImageClass
+  clip:
+    device: auto
+  benchmark:
+    name: imagenette
+    local_path: dataset/imagenette2-320
+  batch_size: 32
+  limit: 1024
+  shuffle: true
+  seed: 42

@@ -3,6 +3,7 @@ from tqdm import tqdm
 from datasets import load_dataset, load_from_disk
 from ..envvar import require_hf_token
 from ..model.interface import VLM
+from ..model.clip import CLIP
 from ..image import raw2resized, resized2image01
 from .interface import ImageClass
 
@@ -136,4 +137,77 @@ class Imagenette(ImageClass):
             "preds": preds,
             "correct_labels": correct_labels,
             "logprobs": logprobs,
+        }
+
+    @torch.no_grad()
+    def eval_classify_clip(
+            self,
+            clip: CLIP,
+            batch_size: int,
+            limit: int | None = None,
+            shuffle: bool = False,
+            seed: int = 42
+        ) -> dict:
+
+        '''
+        Zero-shot classification with a CLIP encoder, by image-text cosine similarity.
+
+        Return: a dictionary with the following key-values:
+            - batch_size: the batch_size
+            - limit: the limit
+            - accuracy: the overall accuracy
+            - labels: the list of label text (in order)
+            - class_accuracy: the list of accuracy for each class, in order
+                              (NaN for a class with no evaluated samples)
+            - indices: torch.tensor on cpu, dataset indices of the results (processing order)
+            - preds: torch.tensor on cpu, the predicted labels of corresponding indices
+            - correct_labels: torch.tensor on cpu, the correct labels of corresponding indices
+            - logits: torch.tensor on cpu, shape (#evaluated, #labels), scaled cosine-sim logits
+
+        The three per-example tensors (indices / correct_labels / logits) are row-aligned.
+        '''
+
+        # text features only depend on the label set -> compute once
+        text_feat = clip.get_label_feat(self.label_texts)   # (#labels, D)
+
+        all_logits, all_labels, all_indices = [], [], []
+
+        n_eval = len(self.ds) if limit is None else min(limit, len(self.ds))
+        n_batches = (n_eval + batch_size - 1) // batch_size   # ceil
+
+        for image01, labels, indices in tqdm(
+            self.loader(batch_size=batch_size, limit=limit, shuffle=shuffle, seed=seed),
+            total=n_batches, desc="eval_classify_clip"
+        ):
+
+            logits = clip.classify(image01, text_feat)   # (B, #labels)
+
+            all_logits.append(logits.detach().cpu())
+            all_labels.append(labels)
+            all_indices.append(indices)
+
+        logits = torch.cat(all_logits, dim=0)            # (#evaluated, #labels)
+        correct_labels = torch.cat(all_labels, dim=0)    # (#evaluated,)
+        indices = torch.cat(all_indices, dim=0)          # (#evaluated,)
+
+        preds = logits.argmax(dim=1)                     # (#evaluated,)
+        correct = preds == correct_labels
+
+        accuracy = correct.float().mean().item()
+
+        class_accuracy = []
+        for c in range(len(self.label_texts)):
+            mask = correct_labels == c
+            class_accuracy.append(correct[mask].float().mean().item() if mask.any() else float("nan"))
+
+        return {
+            "batch_size": batch_size,
+            "limit": limit,
+            "accuracy": accuracy,
+            "labels": self.label_texts,
+            "class_accuracy": class_accuracy,
+            "indices": indices,
+            "preds": preds,
+            "correct_labels": correct_labels,
+            "logits": logits,
         }

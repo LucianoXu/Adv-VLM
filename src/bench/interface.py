@@ -2,6 +2,7 @@
 from typing import Iterator
 from abc import ABC, abstractmethod
 from ..model.interface import VLM
+from ..model.clip import CLIP
 
 import torch
 
@@ -25,6 +26,17 @@ class ImageClass(ABC):
         vlm: VLM,
         question: str,
         answer_priming: str,
+        batch_size: int,
+        limit: int | None = None,
+        shuffle: bool = False,
+        seed: int = 42
+    ) -> dict:
+        ...
+
+    @abstractmethod
+    def eval_classify_clip(
+        self,
+        clip: CLIP,
         batch_size: int,
         limit: int | None = None,
         shuffle: bool = False,
