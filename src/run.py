@@ -155,10 +155,9 @@ def task_CLIP_ImageClass(
 
     output_dir = Path(args['output_dir'])
 
-    # split the result
-    tensor_keys = ["indices", "preds", "correct_labels", "logits"]
-    tensors = {k: res[k] for k in tensor_keys}
-    summary = {k: v for k, v in res.items() if k not in tensor_keys}
+    # split the result by type
+    tensors = {k: v for k, v in res.items() if isinstance(v, torch.Tensor)}
+    summary = {k: v for k, v in res.items() if not isinstance(v, torch.Tensor)}
 
     # readable summary
     save_json(summary, output_dir / "results.json")
@@ -166,7 +165,8 @@ def task_CLIP_ImageClass(
     # per-example tensors for downstream analysis
     torch.save(tensors, output_dir / "tensors.pt")
 
-    print(f" >> Saved results to {output_dir} (accuracy={res['accuracy']:.4f})")
+
+    print(f" >> Saved results to {output_dir}")
 
     return res
 
