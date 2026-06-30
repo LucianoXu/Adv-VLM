@@ -180,11 +180,11 @@ def task_VLM_ImageClass_attack(
     print(" >> Start VLM ImageClass Attack Task.")
 
     from tqdm import tqdm
-    from datasets import Dataset, Features, Array3D, Value, ClassLabel
+    from datasets import Dataset, Features, Array3D, Value, ClassLabel, Image as HFImage
 
     from .model import VLM_factory
     from .bench import ImageClass_factory
-    from .image import IMAGE_SIZE
+    from .image import IMAGE_SIZE, image012resized
 
     vlm_args = args['vlm']
     vlm = VLM_factory(vlm_args)
@@ -249,19 +249,28 @@ def task_VLM_ImageClass_attack(
             quantize=quantize,
         ).detach().cpu()
 
-        # store the raw image01 float tensors (C, H, W) in [0, 1]; converting back to
-        # uint8 images would round away the adversarial perturbation
-        orig_images.extend(image01.float().numpy())
-        adv_images.extend(adv_image01.float().numpy())
+        # resized-space attacks land exactly on the uint8 grid -> store lossless PIL
+        # images; continuous image01 attacks must stay float, else rounding to uint8
+        # would erase the adversarial perturbation.
+        if quantize:
+            orig_images.extend(image012resized(image01))
+            adv_images.extend(image012resized(adv_image01))
+        else:
+            orig_images.extend(image01.float().numpy())
+            adv_images.extend(adv_image01.float().numpy())
         orig_labels.extend(labels.tolist())
         attack_labels.extend(targets.tolist())
         all_indices.extend(indices.tolist())
 
     # pack the per-example results into a HuggingFace dataset
+    image_feature = (
+        HFImage() if quantize
+        else Array3D(shape=(3, IMAGE_SIZE, IMAGE_SIZE), dtype="float32")
+    )
     features = Features({
         "index": Value("int64"),
-        "original_image": Array3D(shape=(3, IMAGE_SIZE, IMAGE_SIZE), dtype="float32"),
-        "adversarial_image": Array3D(shape=(3, IMAGE_SIZE, IMAGE_SIZE), dtype="float32"),
+        "original_image": image_feature,
+        "adversarial_image": image_feature,
         "original_label": ClassLabel(names=label_texts),
         "attack_label": ClassLabel(names=label_texts),
     })
@@ -330,11 +339,11 @@ def task_CLIP_ImageClass_attack(
     print(" >> Start CLIP ImageClass Attack Task.")
 
     from tqdm import tqdm
-    from datasets import Dataset, Features, Array3D, Value, ClassLabel
+    from datasets import Dataset, Features, Array3D, Value, ClassLabel, Image as HFImage
 
     from .model.clip import CLIP
     from .bench import ImageClass_factory
-    from .image import IMAGE_SIZE
+    from .image import IMAGE_SIZE, image012resized
 
     clip_args = args['clip']
     clip = CLIP(device=clip_args.get('device', 'auto'))
@@ -397,19 +406,28 @@ def task_CLIP_ImageClass_attack(
             quantize=quantize,
         ).detach().cpu()
 
-        # store the raw image01 float tensors (C, H, W) in [0, 1]; converting back to
-        # uint8 images would round away the adversarial perturbation
-        orig_images.extend(image01.float().numpy())
-        adv_images.extend(adv_image01.float().numpy())
+        # resized-space attacks land exactly on the uint8 grid -> store lossless PIL
+        # images; continuous image01 attacks must stay float, else rounding to uint8
+        # would erase the adversarial perturbation.
+        if quantize:
+            orig_images.extend(image012resized(image01))
+            adv_images.extend(image012resized(adv_image01))
+        else:
+            orig_images.extend(image01.float().numpy())
+            adv_images.extend(adv_image01.float().numpy())
         orig_labels.extend(labels.tolist())
         attack_labels.extend(targets.tolist())
         all_indices.extend(indices.tolist())
 
     # pack the per-example results into a HuggingFace dataset
+    image_feature = (
+        HFImage() if quantize
+        else Array3D(shape=(3, IMAGE_SIZE, IMAGE_SIZE), dtype="float32")
+    )
     features = Features({
         "index": Value("int64"),
-        "original_image": Array3D(shape=(3, IMAGE_SIZE, IMAGE_SIZE), dtype="float32"),
-        "adversarial_image": Array3D(shape=(3, IMAGE_SIZE, IMAGE_SIZE), dtype="float32"),
+        "original_image": image_feature,
+        "adversarial_image": image_feature,
         "original_label": ClassLabel(names=label_texts),
         "attack_label": ClassLabel(names=label_texts),
     })
