@@ -14,10 +14,7 @@ class ImageClass(ABC):
     @abstractmethod
     def loader(
         self, batch_size: int, limit: int | None = None, shuffle: bool = False, seed: int = 42
-    ) -> Iterator[tuple[torch.Tensor, torch.Tensor, torch.Tensor]]:
-        '''
-        return image01, labels (torch.Long), indices
-        '''
+    ) -> Iterator[tuple]:
         ...
 
     @abstractmethod

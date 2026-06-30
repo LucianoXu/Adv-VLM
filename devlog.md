@@ -9,6 +9,8 @@ Built the attack generation on image01 / resized images. Output the adversarial 
 
 Added CLIP encoder image classification and attack.
 
+Added the ImagenetteAdv benchmark support. It loads the local benchmark of trained adversarial examples.
+
 ## June 29
 
 Started to design the framework for VLM, including generation, evaluation and attack training.
