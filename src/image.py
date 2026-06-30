@@ -88,6 +88,15 @@ def image012pixel_values(imgs: torch.Tensor) -> torch.Tensor:
     std = CLIP_STD.to(device=imgs.device, dtype=imgs.dtype)
     return (imgs - mean) / std
 
+def quantize_ste(x: torch.Tensor) -> torch.Tensor:
+    # forward: snap to the uint8 grid and clamp to [0, 1] -- exactly the image gen() will receive
+    # backward: identity (straight-through), so gradients still flow to delta
+
+    # AI generated
+    xq = (x.clamp(0, 1) * 255).round() / 255
+    return x + (xq - x).detach()
+
+
 def image012resized(ts: torch.Tensor) -> list[Image.Image]:
     res = []
     for t in ts:

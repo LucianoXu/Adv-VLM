@@ -1,0 +1,23 @@
+
+- output_dir: trials/llava-imagenette-attack
+  task_type: VLM-ImageClass-attack
+  vlm:
+    name: LLaVA
+    device: auto
+  benchmark:
+    name: imagenette
+    local_path: dataset/imagenette2-320
+
+  question: "What is the main object in this photo?\nOptions: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute."
+  answer_priming: "The main object in this photo:"
+  batch_size: 16
+  limit: 128
+  shuffle: true
+  seed: 42
+
+  attack:
+    space: image01
+    max_steps: 20
+    stop_gap: 0.5
+    gamma: 1.0
+    lr: 0.003

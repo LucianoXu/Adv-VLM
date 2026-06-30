@@ -1,7 +1,8 @@
-from typing import Any
+from typing import Any, Literal
 import torch
+from torch.optim import Adam
 from PIL import Image
-from ..image import resized2image01, image012pixel_values
+from ..image import raw2resized, resized2image01, image012pixel_values, quantize_ste
 
 from transformers import AutoTokenizer, AutoModelForMultimodalLM
 
@@ -28,7 +29,12 @@ class LLaVA(VLM):
             self.model.to(self.device)
 
 
-    def gen(self, img: Image.Image, question: str, answer_priming: str = "", max_new_tokens = 64) -> str:
+    def gen(self, 
+            img: Image.Image | torch.Tensor, 
+            question: str, 
+            answer_priming: str = "", 
+            img_type: Literal['raw', 'resized', 'image01', 'pixel_value'] = 'raw',
+            max_new_tokens = 64) -> str:
 
         text = f"USER: <image>\n{question}\n ASSISTANT:{answer_priming}"
         ids = self.tok(text, return_tensors="pt").input_ids[0]   # BOS is added here
@@ -39,7 +45,24 @@ class LLaVA(VLM):
                             ids.new_full((self.NUM_IMAGE_TOKENS,), self.IMAGE_TOKEN_ID),
                             ids[pos+1:]])[None].to(self.device)
 
-        pixel_values = image012pixel_values(resized2image01([img])).to(self.device)   # [1, 3, 336, 336]
+        if img_type == 'raw':
+            assert isinstance(img, Image.Image)
+            pixel_values = image012pixel_values(resized2image01(raw2resized([img]))).to(self.device)
+        elif img_type == 'resized':
+            assert isinstance(img, Image.Image)
+            pixel_values = image012pixel_values(resized2image01([img])).to(self.device)
+        elif img_type == 'image01':
+            assert isinstance(img, torch.Tensor)
+            assert len(img.shape) == 4
+            pixel_values = image012pixel_values(img).to(self.device)
+        elif img_type == 'pixel_value':
+            assert isinstance(img, torch.Tensor)
+            assert len(img.shape) == 4
+            pixel_values = img.to(self.device)
+        else:
+            raise ValueError("Invalid image type:", img_type)
+            
+        # pixel_values: [1, 3, 336, 336]
 
         generated = input_ids
         past = None                  # KV cache
@@ -179,3 +202,101 @@ class LLaVA(VLM):
                     scores.append(lp.mean(dim=1))
 
                 return torch.stack(scores, dim=1)   # (N, X)
+            
+
+
+    def classify_attack(
+        self,
+        image01s: torch.Tensor,
+        question: str,
+        answer_priming: str,
+        candidates: list[str],
+        target_candidate: list[int],
+
+        max_steps: int = 20,
+        stop_gap: float = 0.5,
+        gamma: float = 1.0,
+        lr: float = 0.003,
+        quantize: bool = False,
+
+    ) -> torch.Tensor:
+        '''
+        Targeted attack on a whole batch of images, run in parallel.
+        target_candidate[i] is the target label index for example i.
+
+        Each example stopes when the margin exceeds stop_gap.
+
+        quantize: if True, the forward (and the recorded adversarial) is snapped to
+        the uint8 grid via a straight-through estimator -- this is the attack.
+
+        Return the adversarial examples.
+        '''
+        # forward through the uint8 grid or stay continuous
+        proj = quantize_ste if quantize else (lambda x: x)
+
+        N = image01s.shape[0]
+        assert len(target_candidate) == N, "need exactly one target per image"
+
+        image01s = image01s.to(self.device)
+        target_t = torch.tensor(target_candidate, device=self.device)
+
+        delta = torch.zeros_like(image01s, requires_grad=True)
+        opt = Adam([delta], lr=lr)
+
+        done = torch.zeros(N, dtype=torch.bool, device=self.device)
+        adv_out = image01s.clone()
+
+        for step in range(max_steps):
+            active_idx = (~done).nonzero(as_tuple=False).squeeze(1) # global indices still being optimized
+            if active_idx.numel() == 0:
+                break
+
+            # only the active examples go through the forward
+            adv_active = proj(image01s[active_idx] + delta[active_idx])
+            tgt_active = target_t[active_idx]
+            grad_cols = sorted(set(tgt_active.tolist()))
+
+            scores = self.loglikelyhood_classify(
+                question=question,
+                answer_priming=answer_priming,
+                image01s=adv_active,
+                candidates=candidates,
+                differentiable=True,
+                grad_candidates=grad_cols,
+            )
+
+            target_lp = scores.gather(1, tgt_active[:, None]).squeeze(1)   # carries grad
+
+            others = scores.detach().clone()
+            others.scatter_(1, tgt_active[:, None], float("-inf"))
+            comp_lp = others.max(dim=1).values  # best competitor
+            margins = target_lp.detach() - comp_lp
+
+            # an example that crosses the threshold is recorded and dropped from the batch for good
+            crossed = margins > stop_gap
+            adv_out[active_idx[crossed]] = adv_active.detach()[crossed]
+            done[active_idx[crossed]] = True
+
+            print(f"Step {step}  done {int(done.sum())}/{N}  active {active_idx.numel()}  "
+                  f"min_margin {margins.min().item():.3f}  mean_margin {margins.mean().item():.3f}")
+
+            if done.all():
+                break
+
+            # optimize the examples that are still active after this step's records
+            still = ~crossed
+            ms = delta[active_idx].square().mean(dim=(1, 2, 3))
+            loss = (-target_lp + gamma * ms)[still].sum()
+
+            opt.zero_grad()
+            loss.backward()
+            opt.step()
+
+            with torch.no_grad():
+                delta.copy_((image01s + delta).clamp(0, 1) - image01s)  # keep image in [0, 1]
+
+        # examples that never crossed: take their last perturbation
+        rest = (~done).nonzero(as_tuple=False).squeeze(1)
+        adv_out[rest] = proj(image01s[rest] + delta[rest]).detach().clamp(0, 1)
+
+        return adv_out

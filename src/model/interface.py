@@ -1,4 +1,4 @@
-
+from typing import Literal
 from PIL import Image
 from abc import ABC, abstractmethod
 
@@ -18,11 +18,16 @@ class VLM(ABC):
         self.device = resolve_device(device)
     
     @abstractmethod
-    def gen(self, img: Image.Image, question: str, answer_priming: str = "", max_new_tokens = 64) -> str:
+    def gen(self, 
+            img: Image.Image | torch.Tensor, 
+            question: str, 
+            answer_priming: str = "", 
+            img_type: Literal['raw', 'resized', 'image01', 'pixel_value'] = 'raw',
+            max_new_tokens = 64) -> str:
         '''
         One beam of generation. Return the generated new text.
 
-        img input is in the resized image style.
+        img input should be of the same type as indicated by img_type.
         '''
         ...
 
@@ -50,5 +55,32 @@ class VLM(ABC):
         whose scores carry a gradient back to image01s
 
         Return a tensor of average log likelyhood. Shape (N, X). N is the number of examples, and X is the number of candidates.
+        '''
+        ...
+
+
+    @abstractmethod
+    def classify_attack(
+        self,
+        image01s: torch.Tensor,   # shape: (N, C, H, W), values in [0, 1]
+        question: str,
+        answer_priming: str,
+        candidates: list[str],
+        target_candidate: list[int],   # target label index per example, len == N
+        max_steps: int = 20,
+        stop_gap: float = 0.5,
+        gamma: float = 1.0,
+        lr: float = 0.003,
+        quantize: bool = False,
+    ) -> torch.Tensor:
+        '''
+        Targeted adversarial attack on a whole batch of images, run in parallel.
+
+        Each example is optimized until its margin (target vs. best competitor)
+        exceeds stop_gap, then frozen. Returns the adversarial image01s, same
+        shape as the input, values in [0, 1].
+
+        quantize: if True, attack the resized (uint8) image, otherwise attack continuous
+        image01 space.
         '''
         ...
