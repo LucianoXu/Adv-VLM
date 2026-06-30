@@ -64,6 +64,9 @@ def run(args: list | dict[str, Any] | str | Path) -> Any:
             elif args["task_type"] == "CLIP-ImageClass":
                 res = task_CLIP_ImageClass(args)
 
+            elif args["task_type"] == "CLIP-ImageClass-Attack":
+                res = task_CLIP_ImageClass_attack(args)
+
             else:
                 raise ValueError("Invalid Config Type.")
 
@@ -293,6 +296,152 @@ def task_VLM_ImageClass_attack(
             "stop_gap": stop_gap,
             "gamma": gamma,
             "lr": lr,
+            "target": "random-other-class",
+        },
+    }
+
+    # readable summary
+    save_json(summary, output_dir / "results.json")
+
+    # per-example bookkeeping tensors (row-aligned with the dataset)
+    torch.save(
+        {
+            "indices": torch.tensor(all_indices),
+            "original_labels": torch.tensor(orig_labels),
+            "attack_labels": torch.tensor(attack_labels),
+        },
+        output_dir / "tensors.pt",
+    )
+
+    res = {**summary, "dataset": ds}
+
+    print(f" >> Saved attack dataset to {output_dir} ({len(all_indices)} examples)")
+
+    return res
+
+
+def task_CLIP_ImageClass_attack(
+    args: dict
+):
+    '''
+    AI Generated
+    '''
+    
+    print(" >> Start CLIP ImageClass Attack Task.")
+
+    from tqdm import tqdm
+    from datasets import Dataset, Features, Array3D, Value, ClassLabel
+
+    from .model.clip import CLIP
+    from .bench import ImageClass_factory
+    from .image import IMAGE_SIZE
+
+    clip_args = args['clip']
+    clip = CLIP(device=clip_args.get('device', 'auto'))
+
+    imageclass_args = args['benchmark']
+    imageclass = ImageClass_factory(imageclass_args)
+
+    batch_size = args['batch_size']
+    limit = args['limit']
+    shuffle = args['shuffle']
+    seed = args['seed']
+
+    # attack hyper-parameters (fall back to CLIP.attack defaults)
+    attack_args = args.get('attack', {})
+    train_steps = attack_args.get('train_steps', 20)
+    gamma = attack_args.get('gamma', 1.0)
+    lr = attack_args.get('lr', 0.003)
+    label_template = attack_args.get('label_template', "a photo of a {}")
+
+    # attack space: 'image01' (continuous) or 'resized' (snap to the uint8 grid via STE)
+    attack_space = attack_args.get('space', 'image01')
+    if attack_space not in ('image01', 'resized'):
+        raise ValueError(f"attack.space must be 'image01' or 'resized', got {attack_space!r}")
+    quantize = attack_space == 'resized'
+
+    label_texts = imageclass.label_texts
+    num_classes = len(label_texts)
+
+    # one generator drives the random targets for the whole run -> reproducible given seed
+    tgt_gen = torch.Generator().manual_seed(seed)
+
+    n_eval = limit if limit is not None else None
+    n_batches = None
+    if n_eval is not None:
+        n_batches = (n_eval + batch_size - 1) // batch_size   # ceil, for tqdm only
+
+    orig_images, adv_images = [], []
+    orig_labels, attack_labels, all_indices = [], [], []
+
+    for image01, labels, indices in tqdm(
+        imageclass.loader(batch_size=batch_size, limit=limit, shuffle=shuffle, seed=seed),
+        total=n_batches, desc="attack"
+    ):
+        B = labels.shape[0]
+
+        # pick a uniformly random target class different from the true label
+        rand = torch.randint(0, num_classes - 1, (B,), generator=tgt_gen)
+        targets = rand + (rand >= labels).long()   # shift past the true label -> never equal
+
+        # CLIP.attack fits the image toward the target *text* (one per image)
+        target_texts = [label_texts[t] for t in targets.tolist()]
+
+        adv_image01 = clip.attack(
+            image01s=image01.to(clip.device),
+            target_texts=target_texts,
+            label_template=label_template,
+            train_steps=train_steps,
+            gamma=gamma,
+            lr=lr,
+            quantize=quantize,
+        ).detach().cpu()
+
+        # store the raw image01 float tensors (C, H, W) in [0, 1]; converting back to
+        # uint8 images would round away the adversarial perturbation
+        orig_images.extend(image01.float().numpy())
+        adv_images.extend(adv_image01.float().numpy())
+        orig_labels.extend(labels.tolist())
+        attack_labels.extend(targets.tolist())
+        all_indices.extend(indices.tolist())
+
+    # pack the per-example results into a HuggingFace dataset
+    features = Features({
+        "index": Value("int64"),
+        "original_image": Array3D(shape=(3, IMAGE_SIZE, IMAGE_SIZE), dtype="float32"),
+        "adversarial_image": Array3D(shape=(3, IMAGE_SIZE, IMAGE_SIZE), dtype="float32"),
+        "original_label": ClassLabel(names=label_texts),
+        "attack_label": ClassLabel(names=label_texts),
+    })
+    ds = Dataset.from_dict(
+        {
+            "index": all_indices,
+            "original_image": orig_images,
+            "adversarial_image": adv_images,
+            "original_label": orig_labels,
+            "attack_label": attack_labels,
+        },
+        features=features,
+    )
+
+    output_dir = Path(args['output_dir'])
+
+    ds.save_to_disk(str(output_dir / "dataset"))
+
+    summary = {
+        "task_type": "CLIP-ImageClass-Attack",
+        "batch_size": batch_size,
+        "limit": limit,
+        "shuffle": shuffle,
+        "seed": seed,
+        "labels": label_texts,
+        "num_examples": len(all_indices),
+        "attack": {
+            "space": attack_space,
+            "train_steps": train_steps,
+            "gamma": gamma,
+            "lr": lr,
+            "label_template": label_template,
             "target": "random-other-class",
         },
     }

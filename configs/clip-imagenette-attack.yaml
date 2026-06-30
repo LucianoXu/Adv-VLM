@@ -1,0 +1,20 @@
+
+- output_dir: trials/clip-imagenette-attack
+  task_type: CLIP-ImageClass-Attack
+  clip:
+    device: auto
+  benchmark:
+    name: imagenette
+    local_path: dataset/imagenette2-320
+
+  batch_size: 16
+  limit: 128
+  shuffle: true
+  seed: 42
+
+  attack:
+    space: image01
+    train_steps: 20
+    gamma: 1.0
+    lr: 0.003
+    label_template: "a photo of a {}"

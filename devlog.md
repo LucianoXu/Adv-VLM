@@ -7,7 +7,7 @@ And I found that the adversarial example has some kind of unstable generalizatio
 
 Built the attack generation on image01 / resized images. Output the adversarial benchmark.
 
-Added CLIP encoder image classification.
+Added CLIP encoder image classification and attack.
 
 ## June 29
 
