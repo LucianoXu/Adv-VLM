@@ -160,3 +160,6 @@ scripts/logs/
 
 # local datasets
 dataset/
+
+# model checkpoints (e.g. VisualRWKV .pth, ~16GB)
+ckpt/

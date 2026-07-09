@@ -1,9 +1,13 @@
+## July 9
+
+Added VisualRWKV support.
+
 ## June 30
 
 Adversary training succeeded. The misclassified images have some noise difference for it to generalize from embedding attack to image attack.
 
 I found there is a difference between the uint8 image and the continuous embedding. Obviously the uint8 image is harder to attack.
-And I found that the adversarial example has some kind of unstable generalization on different questions. It is very sensitive to the question.
+And I found that the adversarial example has some kind of unstable generalization on different questions. It is very sensitive to the question, as well as the capitalization of words in teacher forcing.
 
 Built the attack generation on image01 / resized images. Output the adversarial benchmark.
 

@@ -70,6 +70,16 @@ class _Tee:
         # logging module's shutdown handler doesn't raise AttributeError at exit.
         pass
 
+    def isatty(self) -> bool:
+        # output is mirrored to a file, so this is never a terminal. transformers'
+        # loading report probes sys.stdout.isatty() for ANSI coloring.
+        return False
+
+    def __getattr__(self, name):
+        # delegate any other stream attribute (encoding, fileno, ...) to the real
+        # console stream so libraries probing stdout/stderr don't hit AttributeError.
+        return getattr(self._streams[0], name)
+
 
 @contextmanager
 def tee_console(path: str | Path):

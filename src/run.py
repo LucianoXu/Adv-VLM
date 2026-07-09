@@ -110,10 +110,8 @@ def task_VLM_ImageClass(
 
     output_dir = Path(args['output_dir'])
 
-    # split the result
-    tensor_keys = ["indices", "preds", "correct_labels", "logprobs"]
-    tensors = {k: res[k] for k in tensor_keys}
-    summary = {k: v for k, v in res.items() if k not in tensor_keys}
+    tensors = {k: v for k, v in res.items() if isinstance(v, torch.Tensor)}
+    summary = {k: v for k, v in res.items() if not isinstance(v, torch.Tensor)}
 
     # readable summary
     save_json(summary, output_dir / "results.json")
@@ -121,7 +119,13 @@ def task_VLM_ImageClass(
     # per-example tensors for downstream analysis
     torch.save(tensors, output_dir / "tensors.pt")
 
-    print(f" >> Saved results to {output_dir} (accuracy={res['accuracy']:.4f})")
+    # clean eval reports "accuracy"; adversarial eval reports original/attack
+    acc = ", ".join(
+        f"{k}={res[k]:.4f}"
+        for k in ("accuracy", "accuracy_original", "accuracy_attack")
+        if k in res
+    )
+    print(f" >> Saved results to {output_dir} ({acc})")
 
     return res
 
