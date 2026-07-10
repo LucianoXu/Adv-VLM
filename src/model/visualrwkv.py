@@ -244,7 +244,7 @@ class VisualRWKV(VLM):
         target_candidate: list[int],
         max_steps: int = 20,
         stop_gap: float = 0.5,
-        gamma: float = 1.0,
+        eps: float = 0.03,
         lr: float = 0.003,
         quantize: bool = False,
     ) -> torch.Tensor:
@@ -303,14 +303,16 @@ class VisualRWKV(VLM):
                 break
 
             still = ~crossed
-            ms = delta[active_idx].square().mean(dim=(1, 2, 3))
-            loss = (-target_lp + gamma * ms)[still].sum()
+            loss = (-target_lp)[still].sum()
 
             opt.zero_grad()
             loss.backward()
             opt.step()
 
             with torch.no_grad():
+                # hard constraint: project onto the per-example RMS ball, then the [0, 1] box.
+                rms = delta.flatten(1).square().mean(dim=1).sqrt()          # (N,)
+                delta.mul_((eps / rms.clamp_min(1e-12)).clamp(max=1.0).view(-1, 1, 1, 1))
                 delta.copy_((image01s + delta).clamp(0, 1) - image01s)
 
         rest = (~done).nonzero(as_tuple=False).squeeze(1)

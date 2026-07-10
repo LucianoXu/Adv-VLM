@@ -1,0 +1,274 @@
+# Cross-evaluation of the four attacked benchmarks.
+#
+# We have four adversarial datasets in results/, produced by two attackers
+# (CLIP / LLaVA) in two attack spaces (image01 / resized):
+#   - results/clip-imagenette-attack-image01/dataset
+#   - results/clip-imagenette-attack-resized/dataset
+#   - results/llava-imagenette-attack-image01/dataset
+#   - results/llava-imagenette-attack-resized/dataset
+#
+# Here we re-evaluate every benchmark with BOTH judges (CLIP and LLaVA), giving
+# a 2x4 matrix. The diagonal (CLIP judging CLIP attacks, LLaVA judging LLaVA
+# attacks) is a white-box sanity check that the attack worked; the off-diagonal
+# (CLIP judging LLaVA attacks and vice-versa) measures cross-model transfer.
+#
+# Each task loads an adversarial dataset via the `imagenette-adv` benchmark and
+# reports accuracy_original (robust accuracy on the true label) and
+# accuracy_attack (targeted attack success rate).
+
+# ===========================================================================
+# Judge: CLIP  -- evaluates all four attacked benchmarks
+# ===========================================================================
+
+- output_dir: results/xeval/clip-on-clip-image01
+  task_type: CLIP-ImageClass
+  clip:
+    device: auto
+  benchmark:
+    name: imagenette-adv
+    local_path: results/clip-imagenette-attack-image01/dataset
+    attack_type: image01
+  batch_size: 256
+  limit: null
+  shuffle: false
+  seed: 42
+
+- output_dir: results/xeval/clip-on-clip-resized
+  task_type: CLIP-ImageClass
+  clip:
+    device: auto
+  benchmark:
+    name: imagenette-adv
+    local_path: results/clip-imagenette-attack-resized/dataset
+    attack_type: resized
+  batch_size: 256
+  limit: null
+  shuffle: false
+  seed: 42
+
+- output_dir: results/xeval/clip-on-llava-image01
+  task_type: CLIP-ImageClass
+  clip:
+    device: auto
+  benchmark:
+    name: imagenette-adv
+    local_path: results/llava-imagenette-attack-image01/dataset
+    attack_type: image01
+  batch_size: 256
+  limit: null
+  shuffle: false
+  seed: 42
+
+- output_dir: results/xeval/clip-on-llava-resized
+  task_type: CLIP-ImageClass
+  clip:
+    device: auto
+  benchmark:
+    name: imagenette-adv
+    local_path: results/llava-imagenette-attack-resized/dataset
+    attack_type: resized
+  batch_size: 256
+  limit: null
+  shuffle: false
+  seed: 42
+
+# ===========================================================================
+# Judge: LLaVA  -- evaluates all four attacked benchmarks
+# (question / answer_priming match the LLaVA attack & test configs)
+# ===========================================================================
+
+- output_dir: results/xeval/llava-on-clip-image01-A
+  task_type: VLM-ImageClass
+  vlm:
+    name: LLaVA
+    device: auto
+  benchmark:
+    name: imagenette-adv
+    local_path: results/clip-imagenette-attack-image01/dataset
+    attack_type: image01
+  question: "What is the main object in this photo?\nOptions: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute."
+  answer_priming: "The main object in this photo:"
+  batch_size: 32
+  limit: null
+  shuffle: false
+  seed: 42
+
+- output_dir: results/xeval/llava-on-clip-image01-B
+  task_type: VLM-ImageClass
+  vlm:
+    name: LLaVA
+    device: auto
+  benchmark:
+    name: imagenette-adv
+    local_path: results/clip-imagenette-attack-image01/dataset
+    attack_type: image01
+  question: "What is the main object in this photo?"
+  answer_priming: "The main object in this photo:"
+  batch_size: 32
+  limit: null
+  shuffle: false
+  seed: 42
+
+- output_dir: results/xeval/llava-on-clip-image01-C
+  task_type: VLM-ImageClass
+  vlm:
+    name: LLaVA
+    device: auto
+  benchmark:
+    name: imagenette-adv
+    local_path: results/clip-imagenette-attack-image01/dataset
+    attack_type: image01
+  question: "What can you see in the photo?"
+  answer_priming: "I can see a"
+  batch_size: 32
+  limit: null
+  shuffle: false
+  seed: 42
+
+- output_dir: results/xeval/llava-on-clip-resized-A
+  task_type: VLM-ImageClass
+  vlm:
+    name: LLaVA
+    device: auto
+  benchmark:
+    name: imagenette-adv
+    local_path: results/clip-imagenette-attack-resized/dataset
+    attack_type: resized
+  question: "What is the main object in this photo?\nOptions: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute."
+  answer_priming: "The main object in this photo:"
+  batch_size: 32
+  limit: null
+  shuffle: false
+  seed: 42
+
+- output_dir: results/xeval/llava-on-clip-resized-B
+  task_type: VLM-ImageClass
+  vlm:
+    name: LLaVA
+    device: auto
+  benchmark:
+    name: imagenette-adv
+    local_path: results/clip-imagenette-attack-resized/dataset
+    attack_type: resized
+  question: "What is the main object in this photo?"
+  answer_priming: "The main object in this photo:"
+  batch_size: 32
+  limit: null
+  shuffle: false
+  seed: 42
+
+- output_dir: results/xeval/llava-on-clip-resized-C
+  task_type: VLM-ImageClass
+  vlm:
+    name: LLaVA
+    device: auto
+  benchmark:
+    name: imagenette-adv
+    local_path: results/clip-imagenette-attack-resized/dataset
+    attack_type: resized
+  question: "What can you see in the photo?"
+  answer_priming: "I can see a"
+  batch_size: 32
+  limit: null
+  shuffle: false
+  seed: 42
+
+- output_dir: results/xeval/llava-on-llava-image01-A
+  task_type: VLM-ImageClass
+  vlm:
+    name: LLaVA
+    device: auto
+  benchmark:
+    name: imagenette-adv
+    local_path: results/llava-imagenette-attack-image01/dataset
+    attack_type: image01
+  question: "What is the main object in this photo?\nOptions: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute."
+  answer_priming: "The main object in this photo:"
+  batch_size: 32
+  limit: null
+  shuffle: false
+  seed: 42
+
+
+- output_dir: results/xeval/llava-on-llava-image01-B
+  task_type: VLM-ImageClass
+  vlm:
+    name: LLaVA
+    device: auto
+  benchmark:
+    name: imagenette-adv
+    local_path: results/llava-imagenette-attack-image01/dataset
+    attack_type: image01
+  question: "What is the main object in this photo?"
+  answer_priming: "The main object in this photo:"
+  batch_size: 32
+  limit: null
+  shuffle: false
+  seed: 42
+
+- output_dir: results/xeval/llava-on-llava-image01-C
+  task_type: VLM-ImageClass
+  vlm:
+    name: LLaVA
+    device: auto
+  benchmark:
+    name: imagenette-adv
+    local_path: results/llava-imagenette-attack-image01/dataset
+    attack_type: image01
+  question: "What can you see in the photo?"
+  answer_priming: "I can see a"
+  batch_size: 32
+  limit: null
+  shuffle: false
+  seed: 42
+
+
+- output_dir: results/xeval/llava-on-llava-resized-A
+  task_type: VLM-ImageClass
+  vlm:
+    name: LLaVA
+    device: auto
+  benchmark:
+    name: imagenette-adv
+    local_path: results/llava-imagenette-attack-resized/dataset
+    attack_type: resized
+  question: "What is the main object in this photo?\nOptions: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute."
+  answer_priming: "The main object in this photo:"
+  batch_size: 32
+  limit: null
+  shuffle: false
+  seed: 42
+
+
+- output_dir: results/xeval/llava-on-llava-resized-B
+  task_type: VLM-ImageClass
+  vlm:
+    name: LLaVA
+    device: auto
+  benchmark:
+    name: imagenette-adv
+    local_path: results/llava-imagenette-attack-resized/dataset
+    attack_type: resized
+  question: "What is the main object in this photo?"
+  answer_priming: "The main object in this photo:"
+  batch_size: 32
+  limit: null
+  shuffle: false
+  seed: 42
+
+
+- output_dir: results/xeval/llava-on-llava-resized-C
+  task_type: VLM-ImageClass
+  vlm:
+    name: LLaVA
+    device: auto
+  benchmark:
+    name: imagenette-adv
+    local_path: results/llava-imagenette-attack-resized/dataset
+    attack_type: resized
+  question: "What can you see in the photo?"
+  answer_priming: "I can see a"
+  batch_size: 32
+  limit: null
+  shuffle: false
+  seed: 42

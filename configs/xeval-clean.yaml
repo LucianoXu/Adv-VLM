@@ -1,0 +1,117 @@
+# Clean-accuracy column of the cross-evaluation table (tab:xeval).
+#
+# 7 tasks: CLIP (promptless) + {LLaVA, VisualRWKV} x prompt modes {A, B, C},
+# all on the CLEAN Imagenette validation set (benchmark `imagenette`, not
+# `imagenette-adv`). Prompt modes match xeval / xeval-rwkv exactly:
+#   A = closed-set w/ Options (same prompt used to generate the attacks)
+#   B = open, no options
+#   C = 'What can you see in the photo?' / priming 'I can see a'
+#
+# Sampling matches the existing clean baselines (results/clip-imagenette-eval
+# 99.5, results/llava-imagenette-eval 97.0): limit 1024, shuffle true, seed 42.
+# The clip and llava-A tasks reproduce those two numbers as a sanity check.
+
+- output_dir: results/xeval-clean/clip
+  task_type: CLIP-ImageClass
+  clip:
+    device: auto
+  benchmark:
+    name: imagenette
+    local_path: dataset/imagenette2-320
+  batch_size: 256
+  limit: 1024
+  shuffle: true
+  seed: 42
+
+- output_dir: results/xeval-clean/llava-A
+  task_type: VLM-ImageClass
+  vlm:
+    name: LLaVA
+    device: auto
+  benchmark:
+    name: imagenette
+    local_path: dataset/imagenette2-320
+  question: "What is the main object in this photo?\nOptions: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute."
+  answer_priming: "The main object in this photo:"
+  batch_size: 32
+  limit: 1024
+  shuffle: true
+  seed: 42
+
+- output_dir: results/xeval-clean/llava-B
+  task_type: VLM-ImageClass
+  vlm:
+    name: LLaVA
+    device: auto
+  benchmark:
+    name: imagenette
+    local_path: dataset/imagenette2-320
+  question: "What is the main object in this photo?"
+  answer_priming: "The main object in this photo:"
+  batch_size: 32
+  limit: 1024
+  shuffle: true
+  seed: 42
+
+- output_dir: results/xeval-clean/llava-C
+  task_type: VLM-ImageClass
+  vlm:
+    name: LLaVA
+    device: auto
+  benchmark:
+    name: imagenette
+    local_path: dataset/imagenette2-320
+  question: "What can you see in the photo?"
+  answer_priming: "I can see a"
+  batch_size: 32
+  limit: 1024
+  shuffle: true
+  seed: 42
+
+- output_dir: results/xeval-clean/rwkv-A
+  task_type: VLM-ImageClass
+  vlm:
+    name: VisualRWKV
+    device: auto
+    model_path: ckpt/VisualRWKV-v060-7B-v1.0-20240612.pth
+  benchmark:
+    name: imagenette
+    local_path: dataset/imagenette2-320
+  question: "What is the main object in this photo?\nOptions: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute."
+  answer_priming: "The main object in this photo:"
+  batch_size: 16
+  limit: 1024
+  shuffle: true
+  seed: 42
+
+- output_dir: results/xeval-clean/rwkv-B
+  task_type: VLM-ImageClass
+  vlm:
+    name: VisualRWKV
+    device: auto
+    model_path: ckpt/VisualRWKV-v060-7B-v1.0-20240612.pth
+  benchmark:
+    name: imagenette
+    local_path: dataset/imagenette2-320
+  question: "What is the main object in this photo?"
+  answer_priming: "The main object in this photo:"
+  batch_size: 16
+  limit: 1024
+  shuffle: true
+  seed: 42
+
+- output_dir: results/xeval-clean/rwkv-C
+  task_type: VLM-ImageClass
+  vlm:
+    name: VisualRWKV
+    device: auto
+    model_path: ckpt/VisualRWKV-v060-7B-v1.0-20240612.pth
+  benchmark:
+    name: imagenette
+    local_path: dataset/imagenette2-320
+  question: "What can you see in the photo?"
+  answer_priming: "I can see a"
+  batch_size: 16
+  limit: 1024
+  shuffle: true
+  seed: 42

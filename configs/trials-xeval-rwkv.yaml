@@ -1,0 +1,200 @@
+- output_dir: trials/xeval-rwkv/rwkv-on-clip-image01-A
+  task_type: VLM-ImageClass
+  vlm:
+    name: VisualRWKV
+    device: auto
+    model_path: ckpt/VisualRWKV-v060-7B-v1.0-20240612.pth
+  benchmark:
+    name: imagenette-adv
+    local_path: trials/clip-imagenette-attack-image01/dataset
+    attack_type: image01
+  question: 'What is the main object in this photo?
+
+    Options: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute.'
+  answer_priming: 'The main object in this photo:'
+  batch_size: 16
+  limit: null
+  shuffle: false
+  seed: 42
+- output_dir: trials/xeval-rwkv/rwkv-on-clip-image01-B
+  task_type: VLM-ImageClass
+  vlm:
+    name: VisualRWKV
+    device: auto
+    model_path: ckpt/VisualRWKV-v060-7B-v1.0-20240612.pth
+  benchmark:
+    name: imagenette-adv
+    local_path: trials/clip-imagenette-attack-image01/dataset
+    attack_type: image01
+  question: What is the main object in this photo?
+  answer_priming: 'The main object in this photo:'
+  batch_size: 16
+  limit: null
+  shuffle: false
+  seed: 42
+- output_dir: trials/xeval-rwkv/rwkv-on-clip-image01-C
+  task_type: VLM-ImageClass
+  vlm:
+    name: VisualRWKV
+    device: auto
+    model_path: ckpt/VisualRWKV-v060-7B-v1.0-20240612.pth
+  benchmark:
+    name: imagenette-adv
+    local_path: trials/clip-imagenette-attack-image01/dataset
+    attack_type: image01
+  question: What can you see in the photo?
+  answer_priming: I can see a
+  batch_size: 16
+  limit: null
+  shuffle: false
+  seed: 42
+- output_dir: trials/xeval-rwkv/rwkv-on-clip-resized-A
+  task_type: VLM-ImageClass
+  vlm:
+    name: VisualRWKV
+    device: auto
+    model_path: ckpt/VisualRWKV-v060-7B-v1.0-20240612.pth
+  benchmark:
+    name: imagenette-adv
+    local_path: trials/clip-imagenette-attack-resized/dataset
+    attack_type: resized
+  question: 'What is the main object in this photo?
+
+    Options: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute.'
+  answer_priming: 'The main object in this photo:'
+  batch_size: 16
+  limit: null
+  shuffle: false
+  seed: 42
+- output_dir: trials/xeval-rwkv/rwkv-on-clip-resized-B
+  task_type: VLM-ImageClass
+  vlm:
+    name: VisualRWKV
+    device: auto
+    model_path: ckpt/VisualRWKV-v060-7B-v1.0-20240612.pth
+  benchmark:
+    name: imagenette-adv
+    local_path: trials/clip-imagenette-attack-resized/dataset
+    attack_type: resized
+  question: What is the main object in this photo?
+  answer_priming: 'The main object in this photo:'
+  batch_size: 16
+  limit: null
+  shuffle: false
+  seed: 42
+- output_dir: trials/xeval-rwkv/rwkv-on-clip-resized-C
+  task_type: VLM-ImageClass
+  vlm:
+    name: VisualRWKV
+    device: auto
+    model_path: ckpt/VisualRWKV-v060-7B-v1.0-20240612.pth
+  benchmark:
+    name: imagenette-adv
+    local_path: trials/clip-imagenette-attack-resized/dataset
+    attack_type: resized
+  question: What can you see in the photo?
+  answer_priming: I can see a
+  batch_size: 16
+  limit: null
+  shuffle: false
+  seed: 42
+- output_dir: trials/xeval-rwkv/rwkv-on-llava-image01-A
+  task_type: VLM-ImageClass
+  vlm:
+    name: VisualRWKV
+    device: auto
+    model_path: ckpt/VisualRWKV-v060-7B-v1.0-20240612.pth
+  benchmark:
+    name: imagenette-adv
+    local_path: trials/llava-imagenette-attack-image01/dataset
+    attack_type: image01
+  question: 'What is the main object in this photo?
+
+    Options: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute.'
+  answer_priming: 'The main object in this photo:'
+  batch_size: 16
+  limit: null
+  shuffle: false
+  seed: 42
+- output_dir: trials/xeval-rwkv/rwkv-on-llava-image01-B
+  task_type: VLM-ImageClass
+  vlm:
+    name: VisualRWKV
+    device: auto
+    model_path: ckpt/VisualRWKV-v060-7B-v1.0-20240612.pth
+  benchmark:
+    name: imagenette-adv
+    local_path: trials/llava-imagenette-attack-image01/dataset
+    attack_type: image01
+  question: What is the main object in this photo?
+  answer_priming: 'The main object in this photo:'
+  batch_size: 16
+  limit: null
+  shuffle: false
+  seed: 42
+- output_dir: trials/xeval-rwkv/rwkv-on-llava-image01-C
+  task_type: VLM-ImageClass
+  vlm:
+    name: VisualRWKV
+    device: auto
+    model_path: ckpt/VisualRWKV-v060-7B-v1.0-20240612.pth
+  benchmark:
+    name: imagenette-adv
+    local_path: trials/llava-imagenette-attack-image01/dataset
+    attack_type: image01
+  question: What can you see in the photo?
+  answer_priming: I can see a
+  batch_size: 16
+  limit: null
+  shuffle: false
+  seed: 42
+- output_dir: trials/xeval-rwkv/rwkv-on-llava-resized-A
+  task_type: VLM-ImageClass
+  vlm:
+    name: VisualRWKV
+    device: auto
+    model_path: ckpt/VisualRWKV-v060-7B-v1.0-20240612.pth
+  benchmark:
+    name: imagenette-adv
+    local_path: trials/llava-imagenette-attack-resized/dataset
+    attack_type: resized
+  question: 'What is the main object in this photo?
+
+    Options: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute.'
+  answer_priming: 'The main object in this photo:'
+  batch_size: 16
+  limit: null
+  shuffle: false
+  seed: 42
+- output_dir: trials/xeval-rwkv/rwkv-on-llava-resized-B
+  task_type: VLM-ImageClass
+  vlm:
+    name: VisualRWKV
+    device: auto
+    model_path: ckpt/VisualRWKV-v060-7B-v1.0-20240612.pth
+  benchmark:
+    name: imagenette-adv
+    local_path: trials/llava-imagenette-attack-resized/dataset
+    attack_type: resized
+  question: What is the main object in this photo?
+  answer_priming: 'The main object in this photo:'
+  batch_size: 16
+  limit: null
+  shuffle: false
+  seed: 42
+- output_dir: trials/xeval-rwkv/rwkv-on-llava-resized-C
+  task_type: VLM-ImageClass
+  vlm:
+    name: VisualRWKV
+    device: auto
+    model_path: ckpt/VisualRWKV-v060-7B-v1.0-20240612.pth
+  benchmark:
+    name: imagenette-adv
+    local_path: trials/llava-imagenette-attack-resized/dataset
+    attack_type: resized
+  question: What can you see in the photo?
+  answer_priming: I can see a
+  batch_size: 16
+  limit: null
+  shuffle: false
+  seed: 42

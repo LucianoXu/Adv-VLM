@@ -1,0 +1,87 @@
+
+- output_dir: trials/clip-imagenette-attack-image01
+  task_type: CLIP-ImageClass-Attack
+  clip:
+    device: auto
+  benchmark:
+    name: imagenette
+    local_path: dataset/imagenette2-320
+  batch_size: 32
+  limit: 1024
+  shuffle: true
+  seed: 42
+  attack:
+    space: image01
+    train_steps: 20
+    eps: 0.03
+    lr: 0.006
+    label_template: a photo of a {}
+
+
+- output_dir: trials/clip-imagenette-attack-resized
+  task_type: CLIP-ImageClass-Attack
+  clip:
+    device: auto
+  benchmark:
+    name: imagenette
+    local_path: dataset/imagenette2-320
+  batch_size: 32
+  limit: 1024
+  shuffle: true
+  seed: 42
+  attack:
+    space: resized
+    train_steps: 20
+    eps: 0.03
+    lr: 0.006
+    label_template: a photo of a {}
+
+
+- output_dir: trials/llava-imagenette-attack-image01
+  task_type: VLM-ImageClass-attack
+  vlm:
+    name: LLaVA
+    device: auto
+  benchmark:
+    name: imagenette
+    local_path: dataset/imagenette2-320
+  question: 'What is the main object in this photo?
+
+    Options: tench, English springer, cassette player, chain saw, church, French horn,
+    garbage truck, gas pump, golf ball, parachute.'
+  answer_priming: 'The main object in this photo:'
+  batch_size: 12
+  limit: 128
+  shuffle: true
+  seed: 42
+  attack:
+    space: image01
+    max_steps: 20
+    stop_gap: 0.5
+    eps: 0.03
+    lr: 0.006
+
+
+- output_dir: trials/llava-imagenette-attack-resized
+  task_type: VLM-ImageClass-attack
+  vlm:
+    name: LLaVA
+    device: auto
+  benchmark:
+    name: imagenette
+    local_path: dataset/imagenette2-320
+  question: 'What is the main object in this photo?
+
+    Options: tench, English springer, cassette player, chain saw, church, French horn,
+    garbage truck, gas pump, golf ball, parachute.'
+  answer_priming: 'The main object in this photo:'
+  batch_size: 12
+  limit: 128
+  shuffle: true
+  seed: 42
+  attack:
+    space: resized
+    max_steps: 20
+    stop_gap: 0.5
+    eps: 0.03
+    lr: 0.006

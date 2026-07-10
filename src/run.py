@@ -207,7 +207,7 @@ def task_VLM_ImageClass_attack(
     attack_args = args.get('attack', {})
     max_steps = attack_args.get('max_steps', 20)
     stop_gap = attack_args.get('stop_gap', 0.5)
-    gamma = attack_args.get('gamma', 1.0)
+    eps = attack_args.get('eps', 0.03)
     lr = attack_args.get('lr', 0.003)
 
     # attack space: 'image01' (continuous) or 'resized' (snap to the uint8 grid via STE)
@@ -248,7 +248,7 @@ def task_VLM_ImageClass_attack(
             target_candidate=targets.tolist(),
             max_steps=max_steps,
             stop_gap=stop_gap,
-            gamma=gamma,
+            eps=eps,
             lr=lr,
             quantize=quantize,
         ).detach().cpu()
@@ -307,7 +307,7 @@ def task_VLM_ImageClass_attack(
             "space": attack_space,
             "max_steps": max_steps,
             "stop_gap": stop_gap,
-            "gamma": gamma,
+            "eps": eps,
             "lr": lr,
             "target": "random-other-class",
         },
@@ -363,7 +363,7 @@ def task_CLIP_ImageClass_attack(
     # attack hyper-parameters (fall back to CLIP.attack defaults)
     attack_args = args.get('attack', {})
     train_steps = attack_args.get('train_steps', 20)
-    gamma = attack_args.get('gamma', 1.0)
+    eps = attack_args.get('eps', 0.03)
     lr = attack_args.get('lr', 0.003)
     label_template = attack_args.get('label_template', "a photo of a {}")
 
@@ -405,7 +405,7 @@ def task_CLIP_ImageClass_attack(
             target_texts=target_texts,
             label_template=label_template,
             train_steps=train_steps,
-            gamma=gamma,
+            eps=eps,
             lr=lr,
             quantize=quantize,
         ).detach().cpu()
@@ -461,7 +461,7 @@ def task_CLIP_ImageClass_attack(
         "attack": {
             "space": attack_space,
             "train_steps": train_steps,
-            "gamma": gamma,
+            "eps": eps,
             "lr": lr,
             "label_template": label_template,
             "target": "random-other-class",

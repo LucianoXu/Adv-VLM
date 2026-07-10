@@ -62,13 +62,17 @@ class CLIP:
         label_template: str = "a photo of a {}",
         
         train_steps: int = 20,
-        gamma: float = 1.0,
+        eps: float = 0.03,
         lr: float = 0.003,
         quantize: bool = False,
     ) -> torch.Tensor:
 
         '''
         Train a fixed number of steps to fit the image01s towards the target texts by cosine similarity.
+
+        Hard-constraint (PGD): the loss is just the (negative) target cosine score;
+        after each step delta is projected onto the per-example RMS ball
+        (sqrt(mean(delta^2)) <= eps, in [0, 1] units) and then onto the [0, 1] box.
         '''
         # forward through the uint8 grid or stay continuous
         proj = quantize_ste if quantize else (lambda x: x)
@@ -99,16 +103,19 @@ class CLIP:
                 logit_scale = self.clip.logit_scale.exp()
                 scores = logit_scale * (img_feat * target_feats).sum(dim=-1)  # (N,)
 
-                loss = (- scores + gamma * delta.square().mean(dim=(1,2,3))).mean()
-
-
-                print(f"Step {step} loss {loss.item()}")
+                loss = (- scores).mean()
 
                 opt.zero_grad()
                 loss.backward()
                 opt.step()
 
                 with torch.no_grad():
-                    delta.copy_((image01s + delta).clamp(0, 1) - image01s)  # keep image in [0, 1]
+                    # hard constraint: project onto the per-example RMS ball, then the [0, 1] box.
+                    rms = delta.flatten(1).square().mean(dim=1).sqrt()          # (N,)
+                    rms_pre = rms.mean().item()
+                    delta.mul_((eps / rms.clamp_min(1e-12)).clamp(max=1.0).view(-1, 1, 1, 1))
+                    delta.copy_((image01s + delta).clamp(0, 1) - image01s)      # keep image in [0, 1]
+
+                print(f"Step {step} loss {loss.item():.4f}  mean_rms(pre-proj) {rms_pre:.4f}  eps {eps}")
 
         return proj(image01s + delta).detach().clamp(0, 1)

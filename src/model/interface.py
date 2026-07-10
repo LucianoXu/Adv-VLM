@@ -69,7 +69,7 @@ class VLM(ABC):
         target_candidate: list[int],   # target label index per example, len == N
         max_steps: int = 20,
         stop_gap: float = 0.5,
-        gamma: float = 1.0,
+        eps: float = 0.03,
         lr: float = 0.003,
         quantize: bool = False,
     ) -> torch.Tensor:

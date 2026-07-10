@@ -215,7 +215,7 @@ class LLaVA(VLM):
 
         max_steps: int = 20,
         stop_gap: float = 0.5,
-        gamma: float = 1.0,
+        eps: float = 0.03,
         lr: float = 0.003,
         quantize: bool = False,
 
@@ -225,6 +225,10 @@ class LLaVA(VLM):
         target_candidate[i] is the target label index for example i.
 
         Each example stopes when the margin exceeds stop_gap.
+
+        Hard-constraint (PGD): the loss is just the (negative) target log-likelihood;
+        after each step delta is projected onto the per-example RMS ball
+        (sqrt(mean(delta^2)) <= eps, in [0, 1] units) and then onto the [0, 1] box.
 
         quantize: if True, the forward (and the recorded adversarial) is snapped to
         the uint8 grid via a straight-through estimator -- this is the attack.
@@ -285,15 +289,17 @@ class LLaVA(VLM):
 
             # optimize the examples that are still active after this step's records
             still = ~crossed
-            ms = delta[active_idx].square().mean(dim=(1, 2, 3))
-            loss = (-target_lp + gamma * ms)[still].sum()
+            loss = (-target_lp)[still].sum()
 
             opt.zero_grad()
             loss.backward()
             opt.step()
 
             with torch.no_grad():
-                delta.copy_((image01s + delta).clamp(0, 1) - image01s)  # keep image in [0, 1]
+                # hard constraint: project onto the per-example RMS ball, then the [0, 1] box.
+                rms = delta.flatten(1).square().mean(dim=1).sqrt()          # (N,)
+                delta.mul_((eps / rms.clamp_min(1e-12)).clamp(max=1.0).view(-1, 1, 1, 1))
+                delta.copy_((image01s + delta).clamp(0, 1) - image01s)      # keep image in [0, 1]
 
         # examples that never crossed: take their last perturbation
         rest = (~done).nonzero(as_tuple=False).squeeze(1)
