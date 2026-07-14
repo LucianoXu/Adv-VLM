@@ -319,3 +319,20 @@ class VisualRWKV(VLM):
         adv_out[rest] = proj(image01s[rest] + delta[rest]).detach().clamp(0, 1)
 
         return adv_out
+
+
+    def saferlhf_attack(
+        self,
+        path: str,
+        init_image: torch.Tensor | None = None,
+        batch_size: int = 8,
+        limit: int | None = None,
+        shuffle: bool = True,
+        seed: int = 42,
+        max_steps: int = 100,
+        lr: float = 0.01,
+        quantize: bool = False,
+        save_dir: str | None = None,
+        save_every: int = 20,
+    ) -> torch.Tensor:
+        raise NotImplementedError("saferlhf_attack is not implemented for VisualRWKV yet")

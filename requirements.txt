@@ -23,3 +23,4 @@ ipykernel>=6.29.0
 
 ninja>=1.11.0
 huggingface_hub>=0.24.0
+tensorboard>=2.16.0
