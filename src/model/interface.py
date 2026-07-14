@@ -30,7 +30,23 @@ class VLM(ABC):
         img input should be of the same type as indicated by img_type.
         '''
         ...
- 
+
+
+    @abstractmethod
+    def gen_batch(self,
+            img: Image.Image | torch.Tensor,
+            questions: list[str],
+            answer_priming: str = "",
+            img_type: Literal['raw', 'resized', 'image01', 'pixel_value'] = 'raw',
+            max_new_tokens: int = 64) -> list[str]:
+        '''
+        Batched greedy generation for many prompts at once.
+
+        img is either a single image (broadcast to every prompt) or a batch of exactly
+        len(questions) images. Returns one generated string per question, in order.
+        '''
+        ...
+
 
     @abstractmethod
     def loglikelyhood_classify(
