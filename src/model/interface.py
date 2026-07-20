@@ -33,6 +33,22 @@ class VLM(ABC):
 
 
     @abstractmethod
+    def gen_batch(self,
+            img: Image.Image | torch.Tensor,
+            questions: list[str],
+            answer_priming: str = "",
+            img_type: Literal['raw', 'resized', 'image01', 'pixel_value'] = 'raw',
+            max_new_tokens: int = 64) -> list[str]:
+        '''
+        Batched greedy generation for many prompts at once.
+
+        img is either a single image (broadcast to every prompt) or a batch of exactly
+        len(questions) images. Returns one generated string per question, in order.
+        '''
+        ...
+
+
+    @abstractmethod
     def loglikelyhood_classify(
             self,
             question: str,
@@ -82,5 +98,41 @@ class VLM(ABC):
 
         quantize: if True, attack the resized (uint8) image, otherwise attack continuous
         image01 space.
+        '''
+        ...
+
+
+    @abstractmethod
+    def saferlhf_attack(
+        self,
+        path: str,
+        init_image: torch.Tensor | None = None,
+        batch_size: int = 8,
+        limit: int | None = None,
+        shuffle: bool = True,
+        seed: int = 42,
+        max_steps: int = 100,
+        lr: float = 0.01,
+        quantize: bool = False,
+        save_dir: str | None = None,
+        save_every: int = 20,
+    ) -> torch.Tensor:
+        '''
+        Universal adversarial attack against the PKU-SafeRLHF dataset.
+
+        Find one image that maximizes the mean teacher-forced log-likelihood of the
+        harmful responses across the (prompt, response) pairs loaded from `path`.
+
+        path: path to a PKU-SafeRLHF JSONL file (built into a PKUSafeRLHF internally).
+
+        quantize: if True, attack the resized (uint8) image via a straight-through
+                  estimator, otherwise attack continuous image01 space.
+
+        save_dir: if given, the current image is checkpointed into this directory every
+                  `save_every` steps (and once more at the end) as both a .pt tensor and
+                  a .png. If None, nothing is written.
+        save_every: checkpoint interval in steps (ignored when save_dir is None).
+
+        Return the optimized image01, shape (1, C, H, W), values in [0, 1].
         '''
         ...

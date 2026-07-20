@@ -1,0 +1,17 @@
+
+- output_dir: trials/llava-saferlhf-attack-image01
+  task_type: VLM-SafeRLHF-attack
+  vlm:
+    name: LLaVA
+    device: auto
+  data_path: PKU-SafeRLHF/data/Alpaca3-8B/train.jsonl
+  batch_size: 8
+  limit: 64
+  shuffle: true
+  seed: 42
+  attack:
+    space: image01
+    max_steps: 100
+    lr: 0.01
+    save_every: 20
+    init_image: null
