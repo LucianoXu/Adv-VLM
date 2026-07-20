@@ -1,0 +1,58 @@
+[
+  {
+    "col": 0,
+    "index": 4748,
+    "original_label": "French horn",
+    "attack_label": "gas pump",
+    "l2": 17.47,
+    "mse": 0.0009014,
+    "rms": 0.03002,
+    "linf": 0.102,
+    "size": [
+      336,
+      336
+    ]
+  },
+  {
+    "col": 1,
+    "index": 12510,
+    "original_label": "gas pump",
+    "attack_label": "golf ball",
+    "l2": 17.47,
+    "mse": 0.0009007,
+    "rms": 0.03001,
+    "linf": 0.1059,
+    "size": [
+      336,
+      336
+    ]
+  },
+  {
+    "col": 2,
+    "index": 323,
+    "original_label": "tench",
+    "attack_label": "French horn",
+    "l2": 17.47,
+    "mse": 0.000901,
+    "rms": 0.03002,
+    "linf": 0.098,
+    "size": [
+      336,
+      336
+    ]
+  },
+  {
+    "col": 3,
+    "index": 11161,
+    "original_label": "church",
+    "attack_label": "cassette player",
+    "l2": 17.46,
+    "mse": 0.0009003,
+    "rms": 0.03,
+    "linf": 0.1059,
+    "size": [
+      336,
+      336
+    ]
+  }
+]

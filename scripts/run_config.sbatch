@@ -20,10 +20,15 @@ mkdir -p scripts/logs
 # Raven provides Python through the module system; our venv is built on it.
 module purge 2>/dev/null || true
 module load python-waterboa/2025.06
+# VisualRWKV JIT-compiles its WKV6 CUDA kernel on first model load; that needs nvcc
+# (matching torch's cu130) and a C++20 g++. Harmless for the LLaVA/CLIP paths.
+module load cuda/13.0 gcc/13
 source .venv/bin/activate
 
 export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK:-8}
 export TOKENIZERS_PARALLELISM=false
+# Pin the GPU arch to the A100 (sm_80) so the cached WKV6 build is reused as-is.
+export TORCH_CUDA_ARCH_LIST=8.0
 # Compute nodes have no internet: read pre-downloaded HF assets from cache only.
 export HF_HUB_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1

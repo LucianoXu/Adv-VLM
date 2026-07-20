@@ -18,6 +18,7 @@
 \usepackage{graphicx}
 \usepackage{xcolor}
 \usepackage{lipsum}
+\usepackage{cleveref}
 
 \newcommand{\note}[1]{\textcolor{blue}{[{#1}]}}
 
@@ -46,7 +47,7 @@
 }
 
 \author{
-  Yingte Xu\\
+  Yingte Xu\thanks{The code of this project is available at the git repository \url{https://github.com/LucianoXu/Adv-VLM}.}\\
   Ruhr University Bochum \\
   \texttt{yingte.xu@edu.ruhr-uni-bochum.de}
 }
@@ -108,29 +109,106 @@ These discoveries suggest that the vulnerability does come from the encoder, and
 
 \section{Related Work}
 
-The first adversarial example attack was ...
+The first adversarial example attack was proposed by Szegedy et al.~\cite{Szegedy2014Intriguing}. They reported that imperceptible perturbation obtained by box-constrained optimization can mislead image classifiers. 
+Goodfellow et al.~\cite{Goodfellow2015FGSM} proposed the fast gradient sign method (FGSM) to construct adversarial examples in a single gradient step.
+% Papernot et al.~\cite{Papernot2016Transferability} and Liu et al.~\cite{Liu2017Delving} study the transferability of adversarial examples, showing that examples crafted on a substitute model can attack a black-box target model, and that targeted transfer is much harder than untargeted transfer.
 
-... studies the transferability of adversarial examples.
-
-
-Multimodal language models incorporates rich modalities like vision and audio into the language model backbone. Representative examples include open-source models ... and closed-source models ....
-
-... first applies adversarial examples to VLM.
-
-There is also research on adversarial examples on language models with acoustic modalities ... 
+Multimodal language models incorporates rich modalities like vision and audio into the language model backbone. Representative examples include open-source models LLaVA~\cite{Liu2024LLaVA15}, MiniGPT-4~\cite{Zhu2024MiniGPT4} and Qwen-VL~\cite{Bai2023QwenVL}, and closed-source models GPT-4V~\cite{OpenAI2023GPT4} and Gemini~\cite{Gemini2023}.
+Zhao et al.~\cite{Zhao2023EvalAdvVLM} first applies adversarial examples to VLM, crafting targeted adversarial images on visual encoders and transferring them to large VLMs in a black-box manner. 
+Carlini et al.~\cite{Carlini2023Aligned} and Qi et al.~\cite{Qi2024VisualJailbreak} show that adversarial images can jailbreak aligned VLMs and lead to harmful generations.
 
 
+For transferability, Schaeffer et al.~\cite{Schaeffer2025} conducted an experiment on over 40 open-source VLM, and claims that end-to-end jailbreak attacks do not transfer in general, even with matching visual encoders or language models.
 
-Schaeffer et al.~\cite{Schaeffer2025} conducted an experiment on over 40 open-source VLM, and claims that end-to-end jailbreak attacks do not transfer in general, even with matching visual encoders or language models.
+
+% About defense, Madry et al.~\cite{Madry2018AT} proposed the defense by training on adversarial examples (adversarial training), formulating robustness as a min-max optimization problem. TeCoA~\cite{Mao2023TeCoA} applies adversarial training to the CLIP encoder to obtain zero-shot adversarial robustness.
+
+% Robust CLIP~\cite{Robust-CLIP} verified that roubstness training for image classification on the visual encoders can generalize to VLMs in a plug-in way.
+% %
+% Yin et al.~\cite{Yin_2026_CVPR} point out that encoder-only robustnes training is not sufficient against jailbreak attacks. An end-to-end training incorporating all modalities works better.
+
+\section{Background and Methods}
+
+This section introduces the structure of CLIP, and how it is embedded in VLMs like LLaVA and VisualRWKV.
+
+\begin{figure}[t]
+  \includegraphics[width=\textwidth]{figures/3tower.png}
+  \caption{An illustration of the CLIP vision tower, and how it is embedded into VLMs.}
+  \label{fig:3tower}
+\end{figure}
+
+\subsection{CLIP Structure}
+
+CLIP was introduced by OpenAI in ... ~\cite{...} as a text-image encoder. 
+It has a double-tower structure. There are two encoders for text and images respectively, and are jointly trained to produce the embedding in the same 768-dimensional semantic space. 
+The text encoder is a standard transformer language model. The embedding output is a projection from the end-of-text (EOT) token feature after the final layer. 
+Instead of a CNN, the image encoder is also a transformer with pre-processings. See~\Cref{fig:3tower} for the illustration.
+It accepts images of size $336 \times 336$ in the normalized floating point pixel value format, slices the image into 576 $14 \times 14$ patches, and transforms them into 576 token features using a linear layer, sorted in the row-major order, with an extra class (CLS) token prepended at the beginning.
+The embedding output of the image takes the feature of the CLS token after the final layer, and projects it into the 768-dimensional vector.
+
+Because of the joint training, the embeddings can be used to evaluate the similarity between text or image samples -- samples with closer semantics will have more aligned embedding vectors, which is reflected by the cosine value of the angle. The image classification for CLIP is based on this.
+
+\subsection{VLMs: LLaVA and VisualRWKV}
+
+LLaVA-1.5 7B~\cite{Liu2024LLaVA15} and VisualRWKV-6 7B~\cite{Hou2025VisualRWKV} are two VLMs based on the same vision tower encoder from CLIP. 
+Despite this, the two VLMs have completely different architectures for the language model backbone, and they utilize the image encoding results in different ways.
+This choice enables us to compare the transferability of adversarial attack across different models, architectures and embedding methods. \Cref{fig:3tower} provides an illustration of how they incorporate CLIP image embeddings.
+
+LLaVA-1.5 uses Vicuna~\cite{...} as the language model backbone, which uses the standard transformer with softmax attention. LLaVA embeds every image with 576 tokens, which are inserted into the tokenized text prompt for multimodal inference. The 576 tokens are taken from the features of the \textit{second last} layer in the vision tower (without the CLS token), and transformed with a 2-layer MLP.
+
+VisualRWKV-6 uses the RWKV-6 language model~\cite{...} as the backbone. RWKV is a family of linear attention models, which are designed to have linear time and memory complexity with sequence length during inference, compared to the square complexity of softmax attention.
+VisualRWKV instead embeds the image as 577 tokens (the 576 patch tokens plus the CLS token), and inserts the text prompt both before and after the image tokens in a sandwich layout. The encoding is taken from the last-layer feature, and projected with one linear layer.
 
 
-About defense,
+\subsection{Adversary Model and Image Input}
 
-... proposed the defense by by training on adversarial examples and improve the robustness.
+The adversary model of the attack describes the assumption of the adversary ability. A stronger model assumes the adversary has more knowledge and control of the target pipeline, which naturally leads to better attack result. On the other hand, weaker adversary models are more realistic. 
+In the adversarial example attack against VLMs in this paper, we assume that the attacker has full knowledge of the VLM in use, and the goal is to trigger misaligned behavior in the deployed system. 
 
-Robust CLIP~\cite{Robust-CLIP} verified that roubstness training for image classification on the visual encoders can generalize to VLMs in a plug-in way.
-%
-Yin et al.~\cite{Yin_2026_CVPR} point out that encoder-only robustnes training is not sufficient against jailbreak attacks. An end-to-end training incorporating all modalities works better.
+One important choice to notice is the input format of images. There is a pipeline of preprocessing from the raw image of free size, to the $336 \times 336$ size pixel values. As is shown in the following figure, we identify four different stages:
+
+\includegraphics[width=\textwidth]{figures/4stages.png}
+
+\begin{itemize}
+  \item \textbf{Raw image:} the raw image of free size.
+  \item \textbf{Resized image:} the image resized to $336 \times 336$, stored in 8-bit format.
+  \item \textbf{Image01:} the $336 \times 336$ image in float format, with channels transformed from $[0, 255]$ to $[0, 1]$.
+  \item \textbf{Pixel values:} the float tensor after normalizing image01 formats. The normalization is defined by CLIP. This is the tensor that finally enters in the inference.
+\end{itemize}
+
+Interfering the image at different stages also influence the adversary model of the attack. Here the weakest model is to attack the raw image, but this can be unstable since the resize of image can follow different strategies, and it is much harder for adversarial examples to generalize to different resizing preprocessings. In the image classification attack, we compare two choices: attacking the resized image, or the image01. The difference here is that the resized image is store in 8-bit format, so the perturbations must be quantized and this is a stronger constraint.
+
+
+\section{Attacking Image Classification}
+
+This section studies the construction of adversarial examples for image classification by the CLIP encoder and the two VLMs.
+The experiments are based on one 
+
+Unlike traditional CNN 
+
+\begin{figure}[t]
+  \centering
+  $\begin{array}{r@{\hspace{1em}}l}
+    & \hspace{0.7em}\text{\footnotesize candidate}\hspace{5em}\text{\footnotesize logits} \\[1pt]
+    \text{\ttfamily ASSISTANT:}~\text{\hlP{The main object in this photo:}} &
+    \left\{\begin{array}{@{}l@{\hspace{1.5em}}l@{}}
+      \text{\hlT{tench}}            & \logit{15} \\[2pt]
+      \text{\hlT{church}}           & \logit{32}~\Rightarrow\,\text{\footnotesize prediction} \\[2pt]
+      \text{\hlT{English springer}} & \logit{22} \\[1pt]
+      \multicolumn{1}{c}{\vdots}    & \\[1pt]
+      \text{\hlT{parachute}}        & \logit{6} \\
+    \end{array}\right.
+  \end{array}$
+  \caption{
+    Teacher-forcing classification. After the \texttt{ASSISTANT} tag and the fixed \hlP{answer priming}, every class label is placed in the \hlT{candidate} slot in turn.
+    Each candidate is teacher-forced and scored by the model's log-likelihood (its logits, drawn as bars).
+    The candidate with the largest score (here \emph{church}) is taken as the classification result.
+  }
+  \label{fig:teacherforcing}
+\end{figure}
+
+
+\section{Adversarial Examples for Jailbreak}
 
 \note{We need a graph from raw image to resized, image01, pixel-values.}
 
@@ -149,16 +227,17 @@ Yin et al.~\cite{Yin_2026_CVPR} point out that encoder-only robustnes training i
     \raisebox{-0.5\height}{\includegraphics[width=0.21\textwidth]{figures/sample2_adv.png}} &
     \raisebox{-0.5\height}{\includegraphics[width=0.21\textwidth]{figures/sample3_adv.png}} \\[4pt]
     &
-    \scriptsize\shortstack{French horn $\to$ gas pump\\ $\mathrm{MSE} = 3.49\times10^{-4}$} &
-    \scriptsize\shortstack{gas pump $\to$ golf ball\\ $\mathrm{MSE} = 3.11\times10^{-4}$} &
-    \scriptsize\shortstack{tench $\to$ French horn\\ $\mathrm{MSE} = 3.17\times10^{-4}$} &
-    \scriptsize\shortstack{church $\to$ cassette player\\ $\mathrm{MSE} = 2.87\times10^{-4}$} \\
+    \scriptsize\shortstack{French horn $\to$ gas pump\\ $\mathrm{RMS} = 0.0300$} &
+    \scriptsize\shortstack{gas pump $\to$ golf ball\\ $\mathrm{RMS} = 0.0300$} &
+    \scriptsize\shortstack{tench $\to$ French horn\\ $\mathrm{RMS} = 0.0300$} &
+    \scriptsize\shortstack{church $\to$ cassette player\\ $\mathrm{RMS} = 0.0300$} \\
   \end{tabular}
   \caption{
-    Samples from our adversarial Imagenette dataset.
+    Samples from our adversarial Imagenette dataset trained on CLIP.
     Top row: clean images (resized to $336\times336$); bottom row: the corresponding adversarial examples trained on the CLIP-336 encoder (resized space).
-    Below each column: the ground-truth label, the attack target label, and the mean squared error (MSE) of the perturbation $\delta$ over all pixels in $[0,1]^{3\times336\times336}$ space, i.e.\ the same distance penalized during the attack (per-pixel $\ell_\infty \approx 0.06$).
-    The perturbations are barely perceptible, yet each adversarial image is classified by CLIP as its target label.
+    Below each column: the ground-truth label, the attack target label, and the root mean squared error (RMS) of the perturbation $\delta$ over all pixels.
+    With the hard budget of RMS within 0.03, the perturbation is still perceptible to some extent, especially at the background.
+    Each adversarial image is classified by CLIP as its target label.
   }
   \label{fig:dataset}
 \end{figure}
@@ -178,17 +257,17 @@ Yin et al.~\cite{Yin_2026_CVPR} point out that encoder-only robustnes training i
     \cmidrule(lr){5-6} \cmidrule(lr){7-8}
     & & & & image01 & resized & image01 & resized \\
     \midrule
-    CLIP & --- & \ccell{99.5} & --- & \cell{2.4}{97.6} & \cell{2.2}{97.8} & \cell{78.9}{14.8} & \cell{78.1}{13.3} \\
+    CLIP & --- & \ccell{99.5} & --- & \cell{0.5}{99.5} & \cell{0.3}{99.7} & \cell{82.8}{9.4} & \cell{82.0}{11.7} \\
     \midrule
     \multirow{3}{*}{LLaVA}
-      & A & \ccell{97.0} & --- & \cell{62.1}{28.2} & \cell{60.9}{28.9} & \cell{7.8}{83.6} & \cell{8.6}{84.4} \\
-      & B & \ccell{73.8}  & --- & \cell{46.3}{25.8} & \cell{45.8}{26.8} & \cell{39.8}{17.2} & \cell{42.2}{19.5} \\
-      & C & \ccell{70.4}  & --- & \cell{50.3}{25.3} & \cell{49.9}{25.1} & \cell{46.9}{15.6} & \cell{50.0}{14.1} \\
+      & A & \ccell{97.0} & --- & \cell{51.5}{39.1} & \cell{51.0}{39.5} & \cell{14.1}{75.0} & \cell{14.1}{76.6} \\
+      & B & \ccell{73.8}  & --- & \cell{40.5}{32.8} & \cell{40.8}{32.0} & \cell{47.7}{12.5} & \cell{44.5}{15.6} \\
+      & C & \ccell{70.4}  & --- & \cell{44.1}{31.7} & \cell{45.0}{31.0} & \cell{50.0}{11.7} & \cell{50.8}{11.7} \\
     \midrule
     \multirow{3}{*}{VisualRWKV}
-      & A & \ccell{96.8}  & --- & \cell{49.6}{47.9} & \cell{47.9}{49.3} & \cell{60.9}{21.9} & \cell{58.6}{20.3} \\
-      & B & \ccell{93.1}  & --- & \cell{45.6}{45.3} & \cell{45.6}{44.9} & \cell{60.9}{19.5} & \cell{63.3}{17.2} \\
-      & C & \ccell{94.2}  & --- & \cell{49.3}{40.4} & \cell{45.0}{44.0} & \cell{60.9}{12.5} & \cell{60.9}{12.5} \\
+      & A & \ccell{96.8}  & --- & \cell{39.1}{58.8} & \cell{38.0}{59.8} & \cell{70.3}{17.2} & \cell{71.1}{14.8} \\
+      & B & \ccell{93.1}  & --- & \cell{36.7}{54.7} & \cell{37.4}{54.0} & \cell{68.8}{15.6} & \cell{70.3}{12.5} \\
+      & C & \ccell{94.2}  & --- & \cell{38.9}{51.6} & \cell{38.4}{51.6} & \cell{70.3}{11.7} & \cell{66.4}{10.9} \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -222,27 +301,6 @@ Yin et al.~\cite{Yin_2026_CVPR} point out that encoder-only robustnes training i
     \bottomrule
   \end{tabular}
 \end{table}
-
-\begin{figure}[t]
-  \centering
-  $\begin{array}{r@{\hspace{1em}}l}
-    & \hspace{0.7em}\text{\footnotesize candidate}\hspace{5em}\text{\footnotesize logits} \\[1pt]
-    \text{\ttfamily ASSISTANT:}~\text{\hlP{The main object in this photo:}} &
-    \left\{\begin{array}{@{}l@{\hspace{1.5em}}l@{}}
-      \text{\hlT{tench}}            & \logit{15} \\[2pt]
-      \text{\hlT{church}}           & \logit{32}~\Rightarrow\,\text{\footnotesize prediction} \\[2pt]
-      \text{\hlT{English springer}} & \logit{22} \\[1pt]
-      \multicolumn{1}{c}{\vdots}    & \\[1pt]
-      \text{\hlT{parachute}}        & \logit{6} \\
-    \end{array}\right.
-  \end{array}$
-  \caption{
-    Teacher-forcing classification. After the \texttt{ASSISTANT} tag and the fixed \hlP{answer priming}, every class label is placed in the \hlT{candidate} slot in turn.
-    Each candidate is teacher-forced and scored by the model's log-likelihood (its logits, drawn as bars).
-    The candidate with the largest score (here \emph{church}) is taken as the classification result.
-  }
-  \label{fig:teacherforcing}
-\end{figure}
 
 
 \section{Conclusion}
