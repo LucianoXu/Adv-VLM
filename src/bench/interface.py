@@ -76,17 +76,23 @@ class PKUSafeRLHF:
     def __getitem__(self, idx: int) -> dict:
         return self.data[idx]
 
-    def loader(self, batch_size: int, limit: int | None = None, shuffle: bool = False, seed: int = 42):
+    def loader(self, batch_size: int, limit: int | None = None, shuffle: bool = False,
+               seed: int = 42, epoch: int = 0):
 
         # yield prompts (list[str]), responses (list[str]), is_safe (torch.bool)
 
-        torch.manual_seed(seed)
-        idx = list(range(len(self.data)))
         
+        g = torch.Generator().manual_seed(seed)
+        idx = list(range(len(self.data)))
+
         if shuffle:
-            idx = torch.randperm(len(self.data)).tolist()
+            idx = torch.randperm(len(self.data), generator=g).tolist()
         if limit is not None:
             idx = idx[:limit]
+
+        if shuffle:
+            g2 = torch.Generator().manual_seed(seed + epoch)
+            idx = [idx[p] for p in torch.randperm(len(idx), generator=g2).tolist()]
 
         for i in range(0, len(idx), batch_size):
             batch_idx = idx[i:i + batch_size]

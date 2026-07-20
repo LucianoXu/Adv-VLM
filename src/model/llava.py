@@ -510,9 +510,10 @@ class LLaVA(VLM):
         self.model.train(True)   # checkpointing engages only in train mode; dropouts are 0
         try:
             step = 0
+            epoch = 0
             while step < max_steps:
                 for prompts, responses, _is_safe in dataset.loader(
-                    batch_size=batch_size, limit=limit, shuffle=shuffle, seed=seed
+                    batch_size=batch_size, limit=limit, shuffle=shuffle, seed=seed, epoch=epoch
                 ):
                     if step >= max_steps:
                         break
@@ -542,6 +543,7 @@ class LLaVA(VLM):
                             writer.add_image("adv_image", proj(adv)[0].detach().cpu().clamp(0, 1), step)
 
                     step += 1
+                epoch += 1
         finally:
             self.model.train(was_training)
             if writer is not None:
