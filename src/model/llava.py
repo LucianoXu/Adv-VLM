@@ -488,7 +488,8 @@ class LLaVA(VLM):
         proj = quantize_ste if quantize else (lambda x: x)
 
         if init_image is None:
-            adv = torch.rand(1, 3, IMAGE_SIZE, IMAGE_SIZE, device=self.device)
+            g_init = torch.Generator().manual_seed(seed)
+            adv = torch.rand(1, 3, IMAGE_SIZE, IMAGE_SIZE, generator=g_init).to(self.device)
         else:
             adv = init_image.detach().clone()
             if adv.dim() == 3:
@@ -505,6 +506,12 @@ class LLaVA(VLM):
             from torch.utils.tensorboard import SummaryWriter
             Path(save_dir).mkdir(parents=True, exist_ok=True)
             writer = SummaryWriter(log_dir=save_dir)
+
+        # record the untouched starting image (before any optimizer step)
+        if save_dir is not None:
+            self._save_image01(proj(adv), save_dir, "adv_init")
+            if writer is not None:
+                writer.add_image("adv_init", proj(adv)[0].detach().cpu().clamp(0, 1), 0)
 
         was_training = self.model.training
         self.model.train(True)   # checkpointing engages only in train mode; dropouts are 0

@@ -222,14 +222,67 @@ class RWKV_Tmix_x060(nn.Module):
         x = self.output(x * g)
         return x
 
-    def forward(self, x):
+    def forward(self, x, return_state=False):
         B, T, C = x.size()
         H = self.n_head
 
         r, k, v, g, w = self.jit_func(x)
-        x = RUN_CUDA_RWKV6(B, T, C, H, r, k, v, w, u=self.time_faaaa)
+        y = RUN_CUDA_RWKV6(B, T, C, H, r, k, v, w, u=self.time_faaaa)
+        out = self.jit_func_2(y, g)
 
-        return self.jit_func_2(x, g)
+        if return_state:
+            # WKV state after the last token + token-shift state, for stateful decoding.
+            return out, self._wkv_final_state(k, v, w), x[:, -1, :]
+        return out
+
+    def _wkv_final_state(self, k, v, w):
+        '''
+        WKV recurrent state after a full sequence, matching the CUDA kernel convention:
+            S[i, j] = w_dec_j * S[i, j] + k_j * v_i,   w_dec = exp(-exp(w)).
+        So S_final[i, j] = sum_t (prod_{t'>t} w_dec_j(t')) * k_j(t) * v_i(t). Computed in
+        float32 via a cumulative-log suffix product -> one matmul per head (no T-loop).
+        k, v, w: [B, T, dim_att]. Returns [B, H, N, N] float32.
+        '''
+        B, T, _ = k.size()
+        H, N = self.n_head, self.head_size
+        kh = k.view(B, T, H, N).float()
+        vh = v.view(B, T, H, N).float()
+        w_dec = torch.exp(-torch.exp(w.float())).view(B, T, H, N)   # per-step decay in (0, 1)
+
+        # coeff[t] = prod of decay strictly after t. A reverse cumprod is used instead of
+        # exp(cumsum(log w)) because decay channels underflow to exactly 0 over a long
+        # prefix -> log(0) = -inf -> NaN; cumprod handles 0 cleanly (matching the kernel).
+        rev_incl = torch.flip(torch.cumprod(torch.flip(w_dec, dims=[1]), dim=1), dims=[1])
+        coeff = torch.ones_like(w_dec)
+        coeff[:, :-1, :, :] = rev_incl[:, 1:, :, :]                 # exclude the current step t
+        kc = kh * coeff
+        return torch.einsum('bthi,bthj->bhij', vh, kc)             # S[i, j] = sum_t v_i * (k_j * suffix_j)
+
+    def step(self, x_t, state, shift_prev):
+        '''
+        Single-token recurrent step. x_t, shift_prev: [G, C]; state: [G, H, N, N] float32.
+        Reuses jit_func/jit_func_2 for the projections (identical math to forward) by
+        running a length-2 window [shift_prev, x_t] so the built-in time_shift sees the
+        right previous token. Returns (out [G, C], new_state, new_shift = x_t).
+        '''
+        G, C = x_t.size()
+        H, N = self.n_head, self.head_size
+
+        x2 = torch.stack([shift_prev, x_t], dim=1)            # [G, 2, C]
+        r, k, v, g, w = self.jit_func(x2)                     # [G, 2, dim_att]
+        rh = r[:, 1].view(G, H, N).float()
+        kh = k[:, 1].view(G, H, N).float()
+        vh = v[:, 1].view(G, H, N).float()
+        w_dec = torch.exp(-torch.exp(w[:, 1].float())).view(G, H, N)
+        u = self.time_faaaa.float()                           # [H, N]
+
+        kv = vh.unsqueeze(-1) * kh.unsqueeze(-2)              # [G, H, N, N], kv[i, j] = v_i * k_j
+        y = torch.einsum('ghij,ghj->ghi', state + u[None, :, None, :] * kv, rh)   # [G, H, N]
+        new_state = w_dec[:, :, None, :] * state + kv         # decay on the key axis j
+
+        y = y.reshape(G, H * N).to(k.dtype)
+        out = self.jit_func_2(y.unsqueeze(1), g[:, 1:2])[:, 0]   # [G, C]
+        return out, new_state, x_t
 
 
 ########################################################################################################
@@ -253,7 +306,7 @@ class RWKV_CMix_x060(nn.Module):
         self.receptance = nn.Linear(args.n_embd, args.n_embd, bias=False)
         self.value = nn.Linear(args.dim_ffn, args.n_embd, bias=False)
 
-    def forward(self, x):
+    def forward(self, x, return_state=False):
         xx = self.time_shift(x) - x
         xk = x + xx * self.time_maa_k
         xr = x + xx * self.time_maa_r
@@ -261,7 +314,16 @@ class RWKV_CMix_x060(nn.Module):
         k = self.key(xk)
         k = torch.relu(k) ** 2
         kv = self.value(k)
-        return torch.sigmoid(self.receptance(xr)) * kv
+        out = torch.sigmoid(self.receptance(xr)) * kv
+        if return_state:
+            return out, x[:, -1, :]         # token-shift state for stateful decoding
+        return out
+
+    def step(self, x_t, shift_prev):
+        '''Single-token step. x_t, shift_prev: [G, C]. Reuses forward on a length-2
+        window so the math is identical. Returns (out [G, C], new_shift = x_t).'''
+        x2 = torch.stack([shift_prev, x_t], dim=1)    # [G, 2, C]
+        return self.forward(x2)[:, 1], x_t
 
 
 ########################################################################################################
@@ -281,14 +343,32 @@ class Block(nn.Module):
         self.att = RWKV_Tmix_x060(args, layer_id)
         self.ffn = RWKV_CMix_x060(args, layer_id)
 
-    def forward(self, x):
+    def forward(self, x, return_state=False):
         if self.layer_id == 0:
             x = self.ln0(x)
 
-        x = x + self.att(self.ln1(x))
-        x = x + self.ffn(self.ln2(x))
+        if not return_state:
+            x = x + self.att(self.ln1(x))
+            x = x + self.ffn(self.ln2(x))
+            return x
 
-        return x
+        a, tstate, tshift = self.att(self.ln1(x), return_state=True)
+        x = x + a
+        c, cshift = self.ffn(self.ln2(x), return_state=True)
+        x = x + c
+        return x, (tstate, tshift, cshift)
+
+    def step(self, h, state):
+        '''Single-token step. h: [G, C]; state: (tstate, tshift, cshift). Returns
+        (h [G, C], new_state).'''
+        tstate, tshift, cshift = state
+        if self.layer_id == 0:
+            h = self.ln0(h)
+        a, tstate, tshift = self.att.step(self.ln1(h), tstate, tshift)
+        h = h + a
+        c, cshift = self.ffn.step(self.ln2(h), cshift)
+        h = h + c
+        return h, (tstate, tshift, cshift)
 
 
 class RWKV(nn.Module):
@@ -372,6 +452,48 @@ class VisualRWKV(nn.Module):
         x = self.rwkv.ln_out(x)
         x = self.rwkv.head(x)
         return x
+
+    def forward_prefill(self, x, img_start=None, img_end=None):
+        '''
+        Like forward_embeds, but also captures per-layer recurrent state (WKV state +
+        token-shift states) at the last position, so generation can continue one token
+        at a time with forward_step instead of re-running the whole sequence each step.
+        The bidirectional image scan is fully contained in the prefix, and the last
+        position is in the text (post-image) region, so the captured states are the
+        correct causal starting point for decoding.
+        Returns (logits [B, T, vocab], states: list of per-layer (tstate, tshift, cshift)).
+        '''
+        do_bidir = img_start is not None and img_end is not None and img_end > img_start
+
+        states = []
+        for i, block in enumerate(self.rwkv.blocks):
+            if do_bidir and (i % 2 == 1):
+                flipped = x[:, img_start:img_end, :].flip(1)
+                x = torch.cat([x[:, :img_start, :], flipped, x[:, img_end:, :]], dim=1)
+                x, st = block(x, return_state=True)
+                flipped = x[:, img_start:img_end, :].flip(1)
+                x = torch.cat([x[:, :img_start, :], flipped, x[:, img_end:, :]], dim=1)
+            else:
+                x, st = block(x, return_state=True)
+            states.append(st)
+
+        x = self.rwkv.ln_out(x)
+        logits = self.rwkv.head(x)
+        return logits, states
+
+    def forward_step(self, tok_emb, states):
+        '''
+        One decoding step. tok_emb: [G, n_embd] embedding of the just-produced token;
+        states: list of per-layer (tstate, tshift, cshift) from forward_prefill / a prior
+        step. Returns (logits [G, vocab], new_states).
+        '''
+        h = tok_emb
+        new_states = []
+        for i, block in enumerate(self.rwkv.blocks):
+            h, st = block.step(h, states[i])
+            new_states.append(st)
+        h = self.rwkv.ln_out(h)
+        return self.rwkv.head(h), new_states
 
 
 def build_args(config: dict) -> SimpleNamespace:

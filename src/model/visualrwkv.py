@@ -165,29 +165,8 @@ class VisualRWKV(VLM):
             img_type: Literal['raw', 'resized', 'image01', 'pixel_value'] = 'raw',
             max_new_tokens=64) -> str:
 
-        pixel_values = self._pixel_values(img, img_type)
-        assert pixel_values.shape[0] == 1, "gen() handles a single image"
-
-        before_ids, after_ids = self._prefix_ids(question, answer_priming)
-
-        with torch.no_grad():
-            x, img_start, img_end = self._build_prefix(pixel_values, before_ids, after_ids)
-
-            generated: list[int] = []
-            for _ in range(max_new_tokens):
-                logits = self.model.forward_embeds(x, img_start, img_end)[:, -1, :]  # [1, V]
-                next_token = int(torch.argmax(logits, dim=-1).item())
-                if next_token == STOP_TOKEN_INDEX:
-                    break
-                generated.append(next_token)
-                nxt = self.model.embed_tokens(torch.tensor([[next_token]], device=self.device))
-                x = torch.cat([x, nxt], dim=1)
-                if x.shape[1] > self.ctx_len:
-                    # truncate from the left but keep the image span intact would be ideal;
-                    # for short generations this is never hit.
-                    x = x[:, -self.ctx_len:, :]
-
-        return self.tok.decode(generated)
+        # single-image / single-prompt case of the stateful batched decoder
+        return self.gen_batch(img, [question], answer_priming, img_type, max_new_tokens)[0]
 
     @torch.no_grad()
     def gen_batch(self,
@@ -241,7 +220,14 @@ class VisualRWKV(VLM):
         after_batch: list[list[int]],         # G id lists, all the same length
         max_new_tokens: int,
     ) -> list[str]:
-        '''Parallel greedy decode for a group of equal-shape prompts (no padding).'''
+        '''
+        Parallel greedy decode for a group of equal-shape prompts (no padding).
+
+        Stateful decoding: prefill the prefix once (capturing the RWKV recurrent state),
+        then advance one token at a time carrying that state -- O(L) instead of the
+        O(L^2) full-sequence recompute per token. Only the causal text suffix is decoded
+        incrementally; the bidirectional image scan stays inside the one-shot prefill.
+        '''
         G = pixel_values.shape[0]
         dev = self.device
 
@@ -253,11 +239,13 @@ class VisualRWKV(VLM):
         img_start = len(before_batch[0])
         img_end = img_start + image_features.shape[1] - 1       # exclude trailing CLS (see _build_prefix)
 
+        # prefill: last-position logits give the first token; states seed the decode loop
+        logits, states = self.model.forward_prefill(x, img_start, img_end)
+        nxt = torch.argmax(logits[:, -1, :], dim=-1)                              # [G]
+
         finished = [False] * G
         gen_tokens: list[list[int]] = [[] for _ in range(G)]
         for _ in range(max_new_tokens):
-            logits = self.model.forward_embeds(x, img_start, img_end)[:, -1, :]   # [G, V]
-            nxt = torch.argmax(logits, dim=-1)                                    # [G]
             for g in range(G):
                 if not finished[g]:
                     t = int(nxt[g].item())
@@ -267,8 +255,10 @@ class VisualRWKV(VLM):
                         gen_tokens[g].append(t)
             if all(finished):
                 break
-            # append every row's token (finished rows get a harmless token, output discarded)
-            x = torch.cat([x, self.model.embed_tokens(nxt.unsqueeze(1))], dim=1)
+            # advance one token (finished rows step too; their output is discarded)
+            tok_emb = self.model.embed_tokens(nxt.unsqueeze(1))[:, 0, :]          # [G, D]
+            logits, states = self.model.forward_step(tok_emb, states)
+            nxt = torch.argmax(logits, dim=-1)                                    # [G]
 
         return [self.tok.decode(g) for g in gen_tokens]
 

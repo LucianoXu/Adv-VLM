@@ -1,0 +1,30 @@
+# Stage 1/2 of the SafeRLHF compliance eval: OFFLINE generation.
+# No network needed -> run on a GPU/compute node:  sbatch scripts/run_config.sbatch configs/llava-saferlhf-gen.yaml
+# Writes generations.json, which the grading stage (llava-saferlhf-grade.yaml) consumes.
+
+- output_dir: trials/llava-saferlhf-gen-image01-llava
+  task_type: VLM-SafeRLHF-gen
+  vlm:
+    name: LLaVA
+    device: auto
+  data_path: PKU-SafeRLHF/data/Alpaca3-8B/test.jsonl
+  adv_image: trials/llava-saferlhf-attack-image01/checkpoints/adv_final.pt
+  batch_size: 16
+  limit: 200
+  shuffle: false
+  seed: 42
+  max_new_tokens: 256
+
+- output_dir: trials/llava-saferlhf-gen-image01-visualrwkv
+  task_type: VLM-SafeRLHF-gen
+  vlm:
+    name: VisualRWKV
+    device: auto
+    model_path: ckpt/VisualRWKV-v060-7B-v1.0-20240612.pth
+  data_path: PKU-SafeRLHF/data/Alpaca3-8B/test.jsonl
+  adv_image: trials/llava-saferlhf-attack-image01/checkpoints/adv_final.pt
+  batch_size: 16
+  limit: 200
+  shuffle: false
+  seed: 42
+  max_new_tokens: 256
