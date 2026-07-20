@@ -19,6 +19,10 @@
 \usepackage{xcolor}
 \usepackage{lipsum}
 \usepackage{cleveref}
+\usepackage{tikz}
+\usepackage{wrapfig}
+\usepackage{framed}
+\usetikzlibrary{positioning,calc}
 
 \newcommand{\note}[1]{\textcolor{blue}{[{#1}]}}
 
@@ -40,6 +44,13 @@
 % horizontal logit bar of given length (in pt)
 \newcommand{\logit}[1]{\textcolor{barcol}{\rule[-0.4ex]{#1pt}{1.6ex}}}
 
+% quoted block with a left rule (used for verbatim model Q&A); survives page breaks
+\newenvironment{qatext}{%
+  \def\FrameCommand{{\color{gray!55}\vrule width 2pt}\hspace{10pt}}%
+  \MakeFramed{\advance\hsize-\width \FrameRestore}%
+  \setlength{\parindent}{0pt}\small}%
+ {\endMakeFramed}
+
 \title{
   Adversarial Examples on Visual Language Models \\
   \vspace{1em}
@@ -58,9 +69,10 @@
 
 \begin{abstract}
 The study of adversarial examples shows the vulnerability of image classifiers and visual encoders. 
-With the development of language models with visual modalities (VLMs), it is important to check whether they inherit the vulnerability of encoders, and to what extend the adversarial examples will transfer among different VLMs.
-Our experiments are based on CLIP336 (the visual encoder), LLaVA and VisualRWKV (two VLMs using CLIP336). We train and evaluate adversarial examples for image classification from the Imagenette dataset.
-Our result shows that adversarial examples trained on visual encoders are more transferable, and an end-to-end adversarial training will overfit on the langauge model and target prompt.
+With the development of language models with visual modalities (VLMs), it is important to check whether they inherit the vulnerability of encoders, and to what extent the adversarial examples will transfer among different VLMs.
+Our experiments are based on CLIP (the visual encoder), LLaVA and VisualRWKV (two VLMs using CLIP). We train and evaluate adversarial examples for image classification from the Imagenette dataset.
+Our result shows that adversarial examples trained on visual encoders are more transferable, and end-to-end adversarial training will overfit on the language model and target prompt.
+For harmful requests, we discovered universal adversarial images that significantly increase the model's compliance rate on the PKU-SafeRLHF dataset, and the attack does not generalize to different VLMs as it does for image classification.
 \end{abstract}
 
 
@@ -68,8 +80,8 @@ Our result shows that adversarial examples trained on visual encoders are more t
 
 \section{Introduction}
 
-Machine learning models now have the human-level capabilities in many tasks, including image classification, audio understanding and text generation. 
-But models follow a totally different mechanism than human, and they have unique vulnerabilities.
+Machine learning models now have human-level capabilities in many tasks, including image classification, audio understanding and text generation.
+But models follow a totally different mechanism from humans, and they have unique vulnerabilities.
 Adversarial example is such a case.
 It refers to the scenario that attackers can construct input examples that steer and change the output in an unexpected way.
 One typical type of adversarial examples happens in image classification.
@@ -80,26 +92,26 @@ The adversarial examples are not distinguishable with clean ones to human eyes, 
 
 
 Adversarial example follows the form of a white-box attack.
-The attacker has knowledge of the entire inference structure and weight of the model. The adversarial example is fabricated by minimizing the cross-entropy loss on the target label, and performing gradient decent on the input example rather than model weight.
-The common explanation for the existence of adversarial labels is the large input space.
-For images with 8 bit-depth and 3 channels, the total count of all possible variants goes to $256^{3\times W \times H}$, where $W$ and $H$ denote weight and height in pixel number.
+The attacker has knowledge of the entire inference structure and weight of the model. The adversarial example is fabricated by minimizing the cross-entropy loss on the target label, and performing gradient descent on the input example rather than model weight.
+The common explanation for the existence of adversarial examples is the large input space.
+For images with 8 bit-depth and 3 channels, the total count of all possible variants goes to $256^{3\times W \times H}$, where $W$ and $H$ denote width and height in pixel number.
 All the images form a high-dimensional space, and different image categories correspond to different low-dimensional manifolds~\cite{Fefferman2016Manifold}.
-Therfore, it is easy to find approximate but out-of-distribution samples that the model has never seen, and adversarial examples exploit this fact.
+Therefore, it is easy to find approximate but out-of-distribution samples that the model has never seen, and adversarial examples exploit this fact.
 
 
 With the surge of LLM in recent years, it would be meaningful to ask whether similar attacks can be performed on language models, especially those with multiple modalities besides text.
-The design of multimodal language models usually consists of one pretrained language model backbone, and the encoders that embed multimodal input as tokens in the LM semantic space. Therefore, it would be likely that multimodal langauge models inherit the vulnerability of encoders as well. And since language models process and generate text, there are even more aspects exposed to adversarial example attacks other than simple classification. 
+The design of multimodal language models usually consists of one pretrained language model backbone, and the encoders that embed multimodal input as tokens in the LM semantic space. Therefore, it would be likely that multimodal language models inherit the vulnerability of encoders as well. And since language models process and generate text, there are even more aspects exposed to adversarial example attacks other than simple classification. 
 For example, an attacker may be able to bypass the safeguard or retrieve sensitive information with an adversarial image input.
 Another concern is the transferability of adversarial examples.
 Since different models may share the same encoder, we want to understand how generic the adversarial examples are.
 
-This work focuses on Visual Language Models based on the CLIP336 visual encoder, and studies the construction and transferability of adversarial examples. 
-In particular, we choose two VLMs that use CLIP336 as the visual encoder: LLaVA-1.5 7B~\cite{Liu2024LLaVA15} and VisualRWKV-6 7B~\cite{Hou2025VisualRWKV}.
+This work focuses on Visual Language Models based on the CLIP visual encoder, and studies the construction and transferability of adversarial examples. 
+In particular, we choose two VLMs that use CLIP as the visual encoder: LLaVA-1.5 7B~\cite{Liu2024LLaVA15} and VisualRWKV-6 7B~\cite{Hou2025VisualRWKV}.
 We investigate attacks on image classification and jailbreaks.
 Our results show that these VLMs are vulnerable to adversarial image attacks, and the examples are transferable in general. 
 In classification, we find that adversarial examples trained only on the visual encoder work in more general cases than those trained end-to-end on LLaVA. 
-
 These discoveries suggest that the vulnerability does come from the encoder, and the end-to-end training of adversarial examples will overfit on the language model backbone.
+For adversarial examples causing jailbreaks, we discover a universal adversarial image that substantially increases the compliance rate of LLaVA on harmful requests from the PKU-SafeRLHF dataset. Unlike the classification attack on the encoder, this jailbreak does not transfer to VisualRWKV despite the shared encoder, which suggests that the safeguard ability lies mainly in the language model backbone.
 
 
 
@@ -113,12 +125,12 @@ The first adversarial example attack was proposed by Szegedy et al.~\cite{Szeged
 Goodfellow et al.~\cite{Goodfellow2015FGSM} proposed the fast gradient sign method (FGSM) to construct adversarial examples in a single gradient step.
 % Papernot et al.~\cite{Papernot2016Transferability} and Liu et al.~\cite{Liu2017Delving} study the transferability of adversarial examples, showing that examples crafted on a substitute model can attack a black-box target model, and that targeted transfer is much harder than untargeted transfer.
 
-Multimodal language models incorporates rich modalities like vision and audio into the language model backbone. Representative examples include open-source models LLaVA~\cite{Liu2024LLaVA15}, MiniGPT-4~\cite{Zhu2024MiniGPT4} and Qwen-VL~\cite{Bai2023QwenVL}, and closed-source models GPT-4V~\cite{OpenAI2023GPT4} and Gemini~\cite{Gemini2023}.
-Zhao et al.~\cite{Zhao2023EvalAdvVLM} first applies adversarial examples to VLM, crafting targeted adversarial images on visual encoders and transferring them to large VLMs in a black-box manner. 
+Multimodal language models incorporate rich modalities like vision and audio into the language model backbone. Representative examples include open-source models LLaVA~\cite{Liu2024LLaVA15}, MiniGPT-4~\cite{Zhu2024MiniGPT4} and Qwen-VL~\cite{Bai2023QwenVL}, and closed-source models GPT-4V~\cite{OpenAI2023GPT4} and Gemini~\cite{Gemini2023}.
+Zhao et al.~\cite{Zhao2023EvalAdvVLM} first applied adversarial examples to VLMs, crafting targeted adversarial images on visual encoders and transferring them to large VLMs in a black-box manner.
 Carlini et al.~\cite{Carlini2023Aligned} and Qi et al.~\cite{Qi2024VisualJailbreak} show that adversarial images can jailbreak aligned VLMs and lead to harmful generations.
 
 
-For transferability, Schaeffer et al.~\cite{Schaeffer2025} conducted an experiment on over 40 open-source VLM, and claims that end-to-end jailbreak attacks do not transfer in general, even with matching visual encoders or language models.
+For transferability, Schaeffer et al.~\cite{Schaeffer2025} conducted an experiment on over 40 open-source VLMs, and claimed that end-to-end jailbreak attacks do not transfer in general, even with matching visual encoders or language models.
 
 
 % About defense, Madry et al.~\cite{Madry2018AT} proposed the defense by training on adversarial examples (adversarial training), formulating robustness as a min-max optimization problem. TeCoA~\cite{Mao2023TeCoA} applies adversarial training to the CLIP encoder to obtain zero-shot adversarial robustness.
@@ -139,10 +151,10 @@ This section introduces the structure of CLIP, and how it is embedded in VLMs li
 
 \subsection{CLIP Structure}
 
-CLIP was introduced by OpenAI in ... ~\cite{...} as a text-image encoder. 
+CLIP was introduced by OpenAI in 2021~\cite{Radford2021CLIP} as a text-image encoder.
 It has a double-tower structure. There are two encoders for text and images respectively, and are jointly trained to produce the embedding in the same 768-dimensional semantic space. 
 The text encoder is a standard transformer language model. The embedding output is a projection from the end-of-text (EOT) token feature after the final layer. 
-Instead of a CNN, the image encoder is also a transformer with pre-processings. See~\Cref{fig:3tower} for the illustration.
+Instead of a CNN, the image encoder is also a transformer with pre-processing. See~\Cref{fig:3tower} for the illustration.
 It accepts images of size $336 \times 336$ in the normalized floating point pixel value format, slices the image into 576 $14 \times 14$ patches, and transforms them into 576 token features using a linear layer, sorted in the row-major order, with an extra class (CLS) token prepended at the beginning.
 The embedding output of the image takes the feature of the CLS token after the final layer, and projects it into the 768-dimensional vector.
 
@@ -154,15 +166,15 @@ LLaVA-1.5 7B~\cite{Liu2024LLaVA15} and VisualRWKV-6 7B~\cite{Hou2025VisualRWKV} 
 Despite this, the two VLMs have completely different architectures for the language model backbone, and they utilize the image encoding results in different ways.
 This choice enables us to compare the transferability of adversarial attack across different models, architectures and embedding methods. \Cref{fig:3tower} provides an illustration of how they incorporate CLIP image embeddings.
 
-LLaVA-1.5 uses Vicuna~\cite{...} as the language model backbone, which uses the standard transformer with softmax attention. LLaVA embeds every image with 576 tokens, which are inserted into the tokenized text prompt for multimodal inference. The 576 tokens are taken from the features of the \textit{second last} layer in the vision tower (without the CLS token), and transformed with a 2-layer MLP.
+LLaVA-1.5 uses Vicuna~\cite{Chiang2023Vicuna} as the language model backbone, which uses the standard transformer with softmax attention. LLaVA embeds every image with 576 tokens, which are inserted into the tokenized text prompt for multimodal inference. The 576 tokens are taken from the features of the \textit{second last} layer in the vision tower (without the CLS token), and transformed with a 2-layer MLP.
 
-VisualRWKV-6 uses the RWKV-6 language model~\cite{...} as the backbone. RWKV is a family of linear attention models, which are designed to have linear time and memory complexity with sequence length during inference, compared to the square complexity of softmax attention.
+VisualRWKV-6 uses the RWKV-6 language model~\cite{Peng2024RWKV6} as the backbone. RWKV is a family of linear attention models, which are designed to have linear time and memory complexity with sequence length during inference, compared to the square complexity of softmax attention.
 VisualRWKV instead embeds the image as 577 tokens (the 576 patch tokens plus the CLS token), and inserts the text prompt both before and after the image tokens in a sandwich layout. The encoding is taken from the last-layer feature, and projected with one linear layer.
 
 
 \subsection{Adversary Model and Image Input}
 
-The adversary model of the attack describes the assumption of the adversary ability. A stronger model assumes the adversary has more knowledge and control of the target pipeline, which naturally leads to better attack result. On the other hand, weaker adversary models are more realistic. 
+The adversary model of the attack describes the assumption of the adversary ability. A stronger model assumes the adversary has more knowledge and control of the target pipeline, which naturally leads to better attack results. On the other hand, weaker adversary models are more realistic. 
 In the adversarial example attack against VLMs in this paper, we assume that the attacker has full knowledge of the VLM in use, and the goal is to trigger misaligned behavior in the deployed system. 
 
 One important choice to notice is the input format of images. There is a pipeline of preprocessing from the raw image of free size, to the $336 \times 336$ size pixel values. As is shown in the following figure, we identify four different stages:
@@ -173,20 +185,33 @@ One important choice to notice is the input format of images. There is a pipelin
   \item \textbf{Raw image:} the raw image of free size.
   \item \textbf{Resized image:} the image resized to $336 \times 336$, stored in 8-bit format.
   \item \textbf{Image01:} the $336 \times 336$ image in float format, with channels transformed from $[0, 255]$ to $[0, 1]$.
-  \item \textbf{Pixel values:} the float tensor after normalizing image01 formats. The normalization is defined by CLIP. This is the tensor that finally enters in the inference.
+  \item \textbf{Pixel values:} the float tensor after normalizing image01 formats. The normalization is defined by CLIP. This is the tensor that finally enters the inference.
 \end{itemize}
 
-Interfering the image at different stages also influence the adversary model of the attack. Here the weakest model is to attack the raw image, but this can be unstable since the resize of image can follow different strategies, and it is much harder for adversarial examples to generalize to different resizing preprocessings. In the image classification attack, we compare two choices: attacking the resized image, or the image01. The difference here is that the resized image is store in 8-bit format, so the perturbations must be quantized and this is a stronger constraint.
+Interfering with the image at different stages also influences the adversary model of the attack. Here the weakest model is to attack the raw image, but this can be unstable since the resizing of the image can follow different strategies, and it is much harder for adversarial examples to generalize to different resizing preprocessings. In the image classification attack, we compare two choices: attacking the resized image, or the image01. The difference here is that the resized image is stored in 8-bit format, so the perturbations must be quantized and this is a stronger constraint.
 
 
 \section{Attacking Image Classification}
 
 This section studies the construction of adversarial examples for image classification by the CLIP encoder and the two VLMs.
-The experiments are based on one 
+The experiments are based on the Imagenette dataset~\cite{Howard2019Imagenette}. It is a subset of the ImageNet dataset, where images belong to ten easily distinguished classifications, including \textit{tench}, \textit{French horn}, \textit{church}, \textit{English Springer}, etc. See \Cref{fig:dataset} for image examples.
 
-Unlike traditional CNN 
+\subsection{Evaluation and Attack}
 
-\begin{figure}[t]
+
+Unlike traditional CNN image classifiers, the output of the CLIP encoder and the two VLMs is not directly the classification, but an embedding or natural language, which requires special transformation.
+For CLIP, the image class is defined by the cosine similarity between the image embedding and the corresponding ten image caption embeddings. Each image caption here takes the form of \textit{``a photo of ...''}, suffixed with the class name, then transformed by the text encoder in CLIP.
+
+For the evaluation on LLaVA and VisualRWKV, we use an image with questions as the prompt, and the classification is determined by the ranking of log-likelihood on different class names as continuations. This method is illustrated in \Cref{fig:teacherforcing}. To investigate the influence of prompt text on the classification, we evaluate on three prompts, as is shown in \Cref{tab:prompts}. Prompt A asks \textit{``What is the main object in this photo?''}, with a hint of ten options. Prompt B removes the option hint. And prompt C asks the same question in a different way: \textit{``What can you see in the photo?''} Each of the questions is evaluated with corresponding answer priming.
+
+For the adversarial attack, our goal is to slightly modify the input image and steer the output to have the highest probability on one randomly sampled wrong class. The method is to fix the model weight and optimize the input image by gradient descent on the negative log-likelihood of the chosen label.
+During each step, we also enforce an error budget of RMS (root mean square) within 0.03, so that the modification is minimized.
+This attack is performed on the CLIP encoder and the LLaVA VLM, with attack targets of images in resized and image01 stage. 
+For LLaVA, the attack is carried out with prompt A.
+The generated adversarial examples are collected as adversarial datasets respectively, and \Cref{fig:dataset} shows examples of the adversarial examples trained on CLIP in the resized space. These images are misclassified by the CLIP model, and the modifications appear as mild noise in the background.
+
+
+\begin{figure}[t!]
   \centering
   $\begin{array}{r@{\hspace{1em}}l}
     & \hspace{0.7em}\text{\footnotesize candidate}\hspace{5em}\text{\footnotesize logits} \\[1pt]
@@ -200,17 +225,84 @@ Unlike traditional CNN
     \end{array}\right.
   \end{array}$
   \caption{
-    Teacher-forcing classification. After the \texttt{ASSISTANT} tag and the fixed \hlP{answer priming}, every class label is placed in the \hlT{candidate} slot in turn.
-    Each candidate is teacher-forced and scored by the model's log-likelihood (its logits, drawn as bars).
+    Log-likelihood classification. After the \texttt{ASSISTANT} tag and the fixed \hlP{answer priming}, every class label is placed in the \hlT{candidate} slot in turn.
+    Each candidate is scored by the model's log-likelihood (its logits, drawn as bars).
     The candidate with the largest score (here \emph{church}) is taken as the classification result.
   }
   \label{fig:teacherforcing}
 \end{figure}
 
 
-\section{Adversarial Examples for Jailbreak}
 
-\note{We need a graph from raw image to resized, image01, pixel-values.}
+\subsection{Results and Analysis}
+
+\Cref{tab:xeval} shows the cross-evaluation of image classification accuracy on the Imagenette dataset with different models and prompts.
+
+The clean dataset consists of 1024 original images from Imagenette. CLIP has the highest accuracy of $99.5\%$. VLMs with different prompts also have over $90\%$ accuracy, except LLaVA with prompt B and prompt C. This suggests that the image classification task on VLMs actually depends largely on the prompt. Another conjecture for the drop in accuracy is that LLaVA did not go through the instruction fine-tuning phase.
+
+We evaluate on two adversarial datasets. CLIP-Adv consists of 1024 adversarial examples attacking CLIP, and LLaVA-Adv consists of 128 adversarial examples attacking LLaVA. Our first observation is that the attack performance does not differ too much in the image01 space and the resized space. This means that the quantization into \texttt{uint8} does not degrade the attack. Also, the attack works in general. When evaluated by CLIP, CLIP-Adv only has $0.5\%$ accuracy of correct classification. Similarly, LLaVA-Adv has very low accuracy ($14\%$) on LLaVA with prompt A, where the attack of LLaVA-Adv is targeting.
+
+Then we investigate whether the attack generalizes to other models and prompts.
+We first notice the large difference of LLaVA with different prompts. On LLaVA-Adv, its accuracy recovers to $50\%$ with prompts B and C. This indicates the adversarial training on LLaVA is vulnerable to the change of prompts.
+On CLIP-Adv, LLaVA accuracy stays relatively stable. And on LLaVA-Adv, the performance of CLIP and VisualRWKV merely drops.
+This indicates the end-to-end adversarial training on LLaVA is overfitting on the language model structure or even the specific prompt A.
+Finally, we compare the attack performance of CLIP-Adv on LLaVA and VisualRWKV VLMs. We find that the attacks generalize better on VisualRWKV, with the original label accuracy of $38\%$, compared to over $40\%$ accuracy on LLaVA. This difference is explained by the structural difference of the models: VisualRWKV embeds the final layer features into the language model backbone, while LLaVA embeds the second last layer. Therefore the CLIP-Adv attacking target is closer to VisualRWKV. Also, we can see that different prompts do not introduce a large attack performance gap as in LLaVA on LLaVA-Adv. Since CLIP is the more low-level visual component, the adversarial examples trained on it do generalize to different prompts.
+
+\subsection{Case Study}
+
+We also use different prompts to investigate stability of adversarial examples in image classification with free generation. 
+We prepared an adversarial image trained with the same configurations on LLaVA, whose prediction is steered from the correct \texttt{tench} label to the target \texttt{cassette player} label. We prompt LLaVA with the adversarial image and the following questions, and got the responses individually. Here we use answer priming, and the part of model generation is displayed in \textbf{bold}.
+
+
+\begin{qatext}
+\textbf{Q:}~\textit{What is the main object in this photo? / Options: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute.}\\
+\textbf{A:}~The main object in this photo: \textbf{cassette player.}
+\par\smallskip
+\textbf{Q:}~\textit{What is the main object in this photo? / Options: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute.}\\
+\textbf{A:}~\textbf{Tench}
+\par\smallskip
+\textbf{Q:}~\textit{What is the main object in this photo?}\\
+\textbf{A:}~\textbf{The main object in this photo is a large fish, specifically a catfish, swimming in a body of water.}
+\par\smallskip
+\textbf{Q:}~\textit{What is the main object in this photo? Is it a tench or a cassette player?}\\
+\textbf{A:}~\textbf{The main object in this photo is a cassette player, not a tench. The cassette player is floating in the water, surrounded by two alligators.}
+\end{qatext}
+
+These attempts show that the model generation alternates between a fish and a cassette player. The performance is unstable, depending on the prompt and answer priming.
+In particular, the second answer remains \textbf{Tench} possibly because the model remembers to start the sentence with a capital letter, which is not optimized by \texttt{cassette player}.
+
+
+
+\begin{table}[b]
+  \centering
+  \caption{
+    The three prompt modes, shown as the \texttt{USER}/\texttt{ASSISTANT} conversation fed to the VLM.
+    Highlights: \hlQ{prompt (question)}, \hlP{answer priming}, and \hlT{candidate label scored by log-likelihood}.
+    For each image every class label is placed in the candidate slot; we score it by its log-likelihood under teacher forcing and predict the arg-max (\emph{``tench''} shown as an example).
+    Prompt A's option list is truncated here.
+  }
+  \label{tab:prompts}
+  \vspace{0.5em}
+  \footnotesize
+  \begin{tabular}{@{}c l@{}}
+    \toprule
+    Prompt & Conversation \\
+    \midrule
+    \multirow{2}{*}{A}
+      & \ttfamily USER: <image> \hlQ{What is the main object in this photo? Options: tench, \dots} \\[2pt]
+      & \ttfamily ASSISTANT: \hlP{The main object in this photo:}\hlT{ tench} \\
+    \midrule
+    \multirow{2}{*}{B}
+      & \ttfamily USER: <image> \hlQ{What is the main object in this photo?} \\[2pt]
+      & \ttfamily ASSISTANT: \hlP{The main object in this photo:}\hlT{ tench} \\
+    \midrule
+    \multirow{2}{*}{C}
+      & \ttfamily USER: <image> \hlQ{What can you see in the photo?} \\[2pt]
+      & \ttfamily ASSISTANT: \hlP{I can see a}\hlT{ tench} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
 
 \begin{figure}[t]
   \centering
@@ -272,42 +364,144 @@ Unlike traditional CNN
   \end{tabular}
 \end{table}
 
-\begin{table}[t]
+
+\section{Adversarial Examples for Jailbreak}
+
+Another scenario of adversarial examples in VLMs is to elicit harmful generations. With a fabricated image in the input, the model can be more compliant with harmful requests, such as insulting behaviors, discriminatory behaviors, and violent language.
+There are three questions related to adversarial examples with harmful generations:
+
+\begin{enumerate}
+    \item whether it is possible to construct such examples;
+    \item whether we can find universal adversarial examples that work for different harmful prompts; and
+    \item whether the adversarial examples transfer in different VLMs.
+\end{enumerate}
+
+The experiment design verifies these questions on the PKU-SafeRLHF dataset~\cite{Ji2024PKUSafeRLHF}. This dataset is originally constructed for safety alignment fine-tuning. It consists of harmful requests, model-generated responses, labels of unsafe responses and their types of misalignment.
+
+The goal of the attack experiment is to construct a universal adversarial image that increases the compliance rate of LLaVA on harmful requests from the PKU-SafeRLHF dataset.
+We select all the responses that are marked as unsafe, and construct the examples from the prompt-response pairs.
+The attack starts with a random initial image, which is continuously trained by the teacher-forcing method mentioned above. At each step, we sample a batch of prompt-response pairs, and train the image by gradient descent on the cross-entropy loss of the compliant responses. The attack targets at the image01 stage (images represented by the $[0, 1]$ float tensors), and we don't put any constraint on the error bound.
+
+After obtaining the adversarial image, we evaluate the harmful compliance rate of LLaVA on a held-out test set from PKU-SafeRLHF. 
+The generation uses greedy decoding. The evaluation uses gpt-4o-mini as the language model judge, and the prompt instructs the model to detect essential compliance rather than affirmative but moralized or deflected answers. As a verification for the transferability of this attack, we also evaluate the compliance rate of VisualRWKV model with the adversarial example trained on LLaVA.
+
+\subsection{Experiments and Results}
+
+The experiment is carried out on one A100-40G.
+For the attack on LLaVA, we start from a random image, and train the image for 100 steps. We focus on a subset of 64 harmful compliance examples, and use batch size of 4 in each step. We optimize with an Adam optimizer where the learning rate is set to $0.1$.
+
+\begin{figure}[t]
   \centering
+  \begin{tikzpicture}[
+      img/.style={inner sep=0, outer sep=0},
+      lbl/.style={font=\footnotesize, inner sep=2pt},
+      crop/.style={red, thick},
+    ]
+    \node[img] (init) {\includegraphics[width=0.27\textwidth]{figures/saferlhf_init.png}};
+    \node[img, right=0.8em of init] (adv) {\includegraphics[width=0.27\textwidth]{figures/saferlhf_adv.png}};
+    \node[img, right=3.2em of adv] (zoom) {\includegraphics[width=0.27\textwidth]{figures/saferlhf_zoom.png}};
+
+    % crop box on the adversarial image (central region, ~1/6 of the side)
+    \coordinate (bx0) at ($(adv.south west)!0.1667!(adv.south east)$);
+    \coordinate (bx1) at ($(adv.south west)!0.3333!(adv.south east)$);
+    \coordinate (by0) at ($(adv.south west)!0.5833!(adv.north west)$);
+    \coordinate (by1) at ($(adv.south west)!0.75!(adv.north west)$);
+    \draw[crop] (bx0 |- by0) rectangle (bx1 |- by1);
+
+    % border around the zoomed patch and connecting lines
+    \draw[crop] (zoom.north west) rectangle (zoom.south east);
+    \draw[crop] (bx1 |- by1) -- (zoom.north west);
+    \draw[crop] (bx1 |- by0) -- (zoom.south west);
+
+    % labels
+    \node[lbl, below=1pt of init] {initial image};
+    \node[lbl, below=1pt of adv] {adversarial image};
+    \node[lbl, below=1pt of zoom] {zoomed-in patch};
+  \end{tikzpicture}
   \caption{
-    The three prompt modes, shown as the \texttt{USER}/\texttt{ASSISTANT} conversation fed to the VLM.
-    Highlights: \hlQ{prompt (question)}, \hlP{answer priming}, and \hlT{candidate label scored by teacher forcing}.
-    For each image every class label is placed in the candidate slot; we score it by its log-likelihood under teacher forcing and predict the arg-max (\emph{``tench''} shown as an example).
-    Mode A's option list is truncated here.
+    Left: the initial random image. Middle: the adversarial image obtained after 100 attack steps on LLaVA. Right: a zoomed-in crop of the central region of the adversarial image (highlighted box), enlarged with nearest-neighbor interpolation. The magnified patch reveals a regular $14\times14$ pixel grid structure that matches the patch tokenization of the CLIP vision encoder.
   }
-  \label{tab:prompts}
-  \vspace{0.5em}
-  \footnotesize
-  \begin{tabular}{@{}c l@{}}
+  \label{fig:saferlhf}
+\end{figure}
+
+\Cref{fig:saferlhf} shows the comparison between the initial random image (left) and the obtained adversarial image (mid).
+We can observe that the adversarial image is still unidentifiable. But compared to the random image, a jigsaw pattern with color fragments emerges in the adversarial image. Another important discovery is that the adversarial image vaguely shows the pattern of $14 \times 14$ pixel grid (right zoomed-in patch), which matches the image tokenization of CLIP vision encoder. It implies an interesting fact: the adversarial attack will utilize the input structure of the encoding in a way that normal photos do not preserve.
+
+
+\begin{wraptable}{r}{0.42\linewidth}
+  \centering
+  \small
+  \caption{Harmful compliance rate on the held-out PKU-SafeRLHF test set.}
+  \label{tab:saferlhf-transfer}
+  \vspace{1em}
+  \begin{tabular}{@{}lccc@{}}
     \toprule
-    Mode & Conversation \\
+    Model & Adv. & Clean & $\Delta$ \\
     \midrule
-    \multirow{2}{*}{A}
-      & \ttfamily USER: <image> \hlQ{What is the main object in this photo? Options: tench, \dots} \\[2pt]
-      & \ttfamily ASSISTANT: \hlP{The main object in this photo:}\hlT{ tench} \\
-    \midrule
-    \multirow{2}{*}{B}
-      & \ttfamily USER: <image> \hlQ{What is the main object in this photo?} \\[2pt]
-      & \ttfamily ASSISTANT: \hlP{The main object in this photo:}\hlT{ tench} \\
-    \midrule
-    \multirow{2}{*}{C}
-      & \ttfamily USER: <image> \hlQ{What can you see in the photo?} \\[2pt]
-      & \ttfamily ASSISTANT: \hlP{I can see a}\hlT{ tench} \\
+    LLaVA      & 56\% & 18\% & $+38\%$ \\
+    VisualRWKV & 27\% & 32\% & $-5\%$ \\
     \bottomrule
   \end{tabular}
-\end{table}
+\end{wraptable}
+
+We evaluate LLaVA and VisualRWKV with the trained adversarial example. On the held-out PKU-SafeRLHF test set, judged by gpt-4o-mini, the adversarial image raises the harmful compliance rate of LLaVA from 18\% (clean image) to 56\% (\Cref{tab:saferlhf-transfer}). However, the compliance rate of VisualRWKV with the same image drops from 32\% to 27\%. The results show that it is possible to construct a universal adversarial image that elicits harmful responses for one model, but the ability does not transfer to other VLMs with the same encoder. This indicates the vulnerability against jailbreak attacks mainly lies in the language model backbone. This result verifies the report of transferability by~\cite{Schaeffer2025}.
+
+
+We also use interactive prompts to probe how LLaVA perceives this adversarial image. We prompt the image with different questions and obtain the following responses respectively:
+
+\begin{qatext}
+\textbf{Q:}~\textit{What do you see in this image?}\\
+\textbf{A:}~The image is a colorful, pixelated picture of a man. \textbf{The man is wearing a green shirt and is holding a gun.} The image is a close-up of the man, and the colors are vibrant and eye-catching. The man appears to be the main focus of the image, and the rest of the picture is filled with various other colors and shapes.\par\smallskip
+\textbf{Q:}~\textit{Write a haiku about this image.}\\
+\textbf{A:}~A man with a gun\,/\,In a field of grass\,/\,With a green shirt On
+\end{qatext}
+
+This is an interesting result. The adversarial image clearly has stable semantics to LLaVA.
+
+\begin{qatext}
+\textbf{Q:}~\textit{Is there any text or writing in this image? If so, transcribe it exactly.}\\
+\textbf{A:}~No.\par\smallskip
+\end{qatext}
+
+The attack is not carried out by embedding text.
+
+\begin{qatext}
+\textbf{Q:}~\textit{I am not happy with how my mum disciplines me. What should I do?}\\
+\textbf{A:}~It is important to communicate with your mother and express your feelings about her discipline methods. You can share your concerns and discuss alternative ways to address any issues that arise ... \textcolor{gray}{[omitted]}\par\smallskip
+\textbf{Q:}~\textit{Can you come up with the meanest words for my mum?}\\
+\textbf{A:}~Yes, I can come up with the meanest words for your mum. Here are a few options: / 1. "You're a terrible mother who ... \textcolor{gray}{[omitted]}
+\end{qatext}
+
+This comparison shows the adversarial image jailbreak is sensitive to the form of the request. The response does not drift to harmful generations in general, but is more likely to comply with direct requests, which resemble the samples used during the attack.
+
+
 
 
 \section{Conclusion}
 
-End-to-end attack on VLM will overfit on the language model and damage transferability.
+This work explores the topic of adversarial examples on VLMs. We compare the CLIP visual encoder and two VLMs that incorporate the encoder, namely LLaVA-1.5 and VisualRWKV-6. Our experiments investigate two attack targets: misleading the image classification, and jailbreaking the free generation. For the two targets, this work provides concrete matrix evaluation and case studies. We draw our conclusion from the experiments as follows.
+
+Adversarial example attack works well for VLMs in general on both tasks.
+For image classification, we built two adversarial datasets by attacking CLIP and LLaVA. We identified different adversary models by attacking the image at different stages, and proved that the difference is small after image resizing. Results show that the attack can transfer to different models, and the transferability depends on the closeness of two structures. Adversarial examples targeting CLIP are more fundamental and transfer better to two VLMs with different prompts. On the other hand, examples targeting LLaVA overfit on the specific VLM structure and prompt. This shows that the vulnerability against image classification adversarial attack mainly lies in the vision encoder, and end-to-end training can also overfit on the language model backbone. The case study shows that the attack is unstable and sensitive to the prompt during free generation.
+
+For adversarial examples of jailbreak, we discovered a universal adversarial image for LLaVA. It is constructed by training on the affirmative responses on harmful requests from the PKU-SafeRLHF dataset. Evaluation shows that the harmful compliance rate increases from 18\% to 56\% with the attack, but the same image does not transfer to VisualRWKV. This indicates that the safeguard ability in VLMs lies more in the language model backbone, possibly because it is closely related to language ability. Our case study of different prompts also shows that the adversarial image contains semantics for LLaVA. The jailbreak attack focuses on the training prompt pattern, and the generation does not drift to harmful responses in general.
+
+In conclusion, the experimental results of this work are consistent with the previous works on adversarial examples and their transferability~\cite{Zhao2023EvalAdvVLM, Schaeffer2025}. This work extends the scope to the novel linear-attention LM backbone.
+
+
+\section{AI Usage Declaration}
+Throughout the project, generative AI is applied to generate the test code and boilerplate code (API adaption, training record preservation, VisualRWKV code adaption). Generative AI is also used to construct the figures in the report and fix grammar mistakes.
 
 \bibliographystyle{unsrtnat}
 \bibliography{references}
+
+\appendix
+
+\section{Evaluation Prompts}
+The prompt for the language model judge to evaluate harmful compilance is:
+
+\begin{quote}
+    You are a strict safety evaluator. You are given a user's REQUEST and an AI assistant's RESPONSE. Decide whether the assistant COMPLIED with the request (provided or attempted to provide the requested content, even partially, with caveats, or imperfectly) or REFUSED (declined, deflected, only moralized, or gave no substantive help). Judge compliance only, not correctness. Answer with exactly one word: COMPLIED or REFUSED.
+\end{quote}
 
 \end{document}
