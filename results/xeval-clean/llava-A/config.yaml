@@ -1,0 +1,17 @@
+output_dir: results/xeval-clean/llava-A
+task_type: VLM-ImageClass
+vlm:
+  name: LLaVA
+  device: auto
+benchmark:
+  name: imagenette
+  local_path: dataset/imagenette2-320
+question: 'What is the main object in this photo?
+
+  Options: tench, English springer, cassette player, chain saw, church, French horn,
+  garbage truck, gas pump, golf ball, parachute.'
+answer_priming: 'The main object in this photo:'
+batch_size: 32
+limit: 1024
+shuffle: true
+seed: 42

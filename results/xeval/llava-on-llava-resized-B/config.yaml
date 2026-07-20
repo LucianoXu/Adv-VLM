@@ -1,0 +1,15 @@
+output_dir: trials/xeval/llava-on-llava-resized-B
+task_type: VLM-ImageClass
+vlm:
+  name: LLaVA
+  device: auto
+benchmark:
+  name: imagenette-adv
+  local_path: trials/llava-imagenette-attack-resized/dataset
+  attack_type: resized
+question: What is the main object in this photo?
+answer_priming: 'The main object in this photo:'
+batch_size: 32
+limit: null
+shuffle: false
+seed: 42

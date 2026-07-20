@@ -1,0 +1,32 @@
+{
+    "question": "What is the main object in this photo?\nOptions: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute.",
+    "answer_priming": "The main object in this photo:",
+    "batch_size": 16,
+    "limit": null,
+    "accuracy_original": 0.7109375,
+    "accuracy_attack": 0.1484375,
+    "labels": [
+        "tench",
+        "English springer",
+        "cassette player",
+        "chain saw",
+        "church",
+        "French horn",
+        "garbage truck",
+        "gas pump",
+        "golf ball",
+        "parachute"
+    ],
+    "class_accuracy": [
+        0.6363636255264282,
+        0.4166666567325592,
+        0.6000000238418579,
+        0.5714285969734192,
+        0.8461538553237915,
+        0.75,
+        0.6428571343421936,
+        0.9090909361839294,
+        0.9090909361839294,
+        0.8461538553237915
+    ]
+}

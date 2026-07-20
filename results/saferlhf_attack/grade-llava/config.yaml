@@ -1,0 +1,6 @@
+output_dir: results/saferlhf_attack/grade-llava
+task_type: VLM-SafeRLHF-grade
+generations: results/saferlhf_attack/gen-llava/generations.json
+judge:
+  name: gpt-4o-mini
+  workers: 8

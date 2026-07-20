@@ -1,0 +1,32 @@
+{
+    "question": "What can you see in the photo?",
+    "answer_priming": "I can see a",
+    "batch_size": 32,
+    "limit": null,
+    "accuracy_original": 0.5078125,
+    "accuracy_attack": 0.1171875,
+    "labels": [
+        "tench",
+        "English springer",
+        "cassette player",
+        "chain saw",
+        "church",
+        "French horn",
+        "garbage truck",
+        "gas pump",
+        "golf ball",
+        "parachute"
+    ],
+    "class_accuracy": [
+        0.0,
+        0.0833333358168602,
+        0.8999999761581421,
+        0.1428571492433548,
+        0.4615384638309479,
+        0.0625,
+        0.7142857313156128,
+        0.8181818127632141,
+        0.5454545617103577,
+        1.0
+    ]
+}

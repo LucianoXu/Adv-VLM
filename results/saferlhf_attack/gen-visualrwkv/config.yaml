@@ -1,0 +1,13 @@
+output_dir: results/saferlhf_attack/gen-visualrwkv
+task_type: VLM-SafeRLHF-gen
+vlm:
+  name: VisualRWKV
+  device: auto
+  model_path: ckpt/VisualRWKV-v060-7B-v1.0-20240612.pth
+data_path: PKU-SafeRLHF/data/Alpaca3-8B/test.jsonl
+adv_image: results/saferlhf_attack/adv_final.pt
+batch_size: 16
+limit: 100
+shuffle: false
+seed: 42
+max_new_tokens: 256

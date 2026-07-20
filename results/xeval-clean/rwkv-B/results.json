@@ -1,0 +1,31 @@
+{
+    "question": "What is the main object in this photo?",
+    "answer_priming": "The main object in this photo:",
+    "batch_size": 16,
+    "limit": 1024,
+    "accuracy": 0.9306640625,
+    "labels": [
+        "tench",
+        "English springer",
+        "cassette player",
+        "chain saw",
+        "church",
+        "French horn",
+        "garbage truck",
+        "gas pump",
+        "golf ball",
+        "parachute"
+    ],
+    "class_accuracy": [
+        0.48245614767074585,
+        0.9714285731315613,
+        0.9514563083648682,
+        1.0,
+        0.9708737730979919,
+        1.0,
+        0.9903846383094788,
+        1.0,
+        1.0,
+        1.0
+    ]
+}

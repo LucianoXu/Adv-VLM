@@ -1,0 +1,30 @@
+{
+    "batch_size": 256,
+    "limit": null,
+    "accuracy_original": 0.0029296875,
+    "accuracy_attack": 0.9970703125,
+    "labels": [
+        "tench",
+        "English springer",
+        "cassette player",
+        "chain saw",
+        "church",
+        "French horn",
+        "garbage truck",
+        "gas pump",
+        "golf ball",
+        "parachute"
+    ],
+    "class_accuracy": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.009803921915590763,
+        0.0,
+        0.0,
+        0.019607843831181526,
+        0.0
+    ]
+}

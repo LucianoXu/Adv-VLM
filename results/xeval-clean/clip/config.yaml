@@ -1,0 +1,11 @@
+output_dir: results/xeval-clean/clip
+task_type: CLIP-ImageClass
+clip:
+  device: auto
+benchmark:
+  name: imagenette
+  local_path: dataset/imagenette2-320
+batch_size: 256
+limit: 1024
+shuffle: true
+seed: 42

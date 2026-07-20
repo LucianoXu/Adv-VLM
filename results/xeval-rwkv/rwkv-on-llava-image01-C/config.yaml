@@ -1,0 +1,16 @@
+output_dir: trials/xeval-rwkv/rwkv-on-llava-image01-C
+task_type: VLM-ImageClass
+vlm:
+  name: VisualRWKV
+  device: auto
+  model_path: ckpt/VisualRWKV-v060-7B-v1.0-20240612.pth
+benchmark:
+  name: imagenette-adv
+  local_path: trials/llava-imagenette-attack-image01/dataset
+  attack_type: image01
+question: What can you see in the photo?
+answer_priming: I can see a
+batch_size: 16
+limit: null
+shuffle: false
+seed: 42

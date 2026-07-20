@@ -1,0 +1,6 @@
+output_dir: results/saferlhf_attack/grade-visualrwkv
+task_type: VLM-SafeRLHF-grade
+generations: results/saferlhf_attack/gen-visualrwkv/generations.json
+judge:
+  name: gpt-4o-mini
+  workers: 8

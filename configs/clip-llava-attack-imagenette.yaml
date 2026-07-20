@@ -1,5 +1,5 @@
 
-- output_dir: trials/clip-imagenette-attack-image01
+- output_dir: results/clip-imagenette-attack-image01
   task_type: CLIP-ImageClass-Attack
   clip:
     device: auto
@@ -18,7 +18,7 @@
     label_template: a photo of a {}
 
 
-- output_dir: trials/clip-imagenette-attack-resized
+- output_dir: results/clip-imagenette-attack-resized
   task_type: CLIP-ImageClass-Attack
   clip:
     device: auto
@@ -37,7 +37,7 @@
     label_template: a photo of a {}
 
 
-- output_dir: trials/llava-imagenette-attack-image01
+- output_dir: results/llava-imagenette-attack-image01
   task_type: VLM-ImageClass-attack
   vlm:
     name: LLaVA
@@ -62,7 +62,7 @@
     lr: 0.006
 
 
-- output_dir: trials/llava-imagenette-attack-resized
+- output_dir: results/llava-imagenette-attack-resized
   task_type: VLM-ImageClass-attack
   vlm:
     name: LLaVA

@@ -1,0 +1,12 @@
+output_dir: trials/xeval/clip-on-clip-image01
+task_type: CLIP-ImageClass
+clip:
+  device: auto
+benchmark:
+  name: imagenette-adv
+  local_path: trials/clip-imagenette-attack-image01/dataset
+  attack_type: image01
+batch_size: 256
+limit: null
+shuffle: false
+seed: 42
