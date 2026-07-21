@@ -196,115 +196,7 @@ Interfering with the image at different stages also influences the adversary mod
 This section studies the construction of adversarial examples for image classification by the CLIP encoder and the two VLMs.
 The experiments are based on the Imagenette dataset~\cite{Howard2019Imagenette}. It is a subset of the ImageNet dataset, where images belong to ten easily distinguished classifications, including \textit{tench}, \textit{French horn}, \textit{church}, \textit{English Springer}, etc. See \Cref{fig:dataset} for image examples.
 
-\subsection{Evaluation and Attack}
-
-
-Unlike traditional CNN image classifiers, the output of the CLIP encoder and the two VLMs is not directly the classification, but an embedding or natural language, which requires special transformation.
-For CLIP, the image class is defined by the cosine similarity between the image embedding and the corresponding ten image caption embeddings. Each image caption here takes the form of \textit{``a photo of ...''}, suffixed with the class name, then transformed by the text encoder in CLIP.
-
-For the evaluation on LLaVA and VisualRWKV, we use an image with questions as the prompt, and the classification is determined by the ranking of log-likelihood on different class names as continuations. This method is illustrated in \Cref{fig:teacherforcing}. To investigate the influence of prompt text on the classification, we evaluate on three prompts, as is shown in \Cref{tab:prompts}. Prompt A asks \textit{``What is the main object in this photo?''}, with a hint of ten options. Prompt B removes the option hint. And prompt C asks the same question in a different way: \textit{``What can you see in the photo?''} Each of the questions is evaluated with corresponding answer priming.
-
-For the adversarial attack, our goal is to slightly modify the input image and steer the output to have the highest probability on one randomly sampled wrong class. The method is to fix the model weight and optimize the input image by gradient descent on the negative log-likelihood of the chosen label.
-During each step, we also enforce an error budget of RMS (root mean square) within 0.03, so that the modification is minimized.
-This attack is performed on the CLIP encoder and the LLaVA VLM, with attack targets of images in resized and image01 stage. 
-For LLaVA, the attack is carried out with prompt A.
-The generated adversarial examples are collected as adversarial datasets respectively, and \Cref{fig:dataset} shows examples of the adversarial examples trained on CLIP in the resized space. These images are misclassified by the CLIP model, and the modifications appear as mild noise in the background.
-
-
-\begin{figure}[t!]
-  \centering
-  $\begin{array}{r@{\hspace{1em}}l}
-    & \hspace{0.7em}\text{\footnotesize candidate}\hspace{5em}\text{\footnotesize logits} \\[1pt]
-    \text{\ttfamily ASSISTANT:}~\text{\hlP{The main object in this photo:}} &
-    \left\{\begin{array}{@{}l@{\hspace{1.5em}}l@{}}
-      \text{\hlT{tench}}            & \logit{15} \\[2pt]
-      \text{\hlT{church}}           & \logit{32}~\Rightarrow\,\text{\footnotesize prediction} \\[2pt]
-      \text{\hlT{English springer}} & \logit{22} \\[1pt]
-      \multicolumn{1}{c}{\vdots}    & \\[1pt]
-      \text{\hlT{parachute}}        & \logit{6} \\
-    \end{array}\right.
-  \end{array}$
-  \caption{
-    Log-likelihood classification. After the \texttt{ASSISTANT} tag and the fixed \hlP{answer priming}, every class label is placed in the \hlT{candidate} slot in turn.
-    Each candidate is scored by the model's log-likelihood (its logits, drawn as bars).
-    The candidate with the largest score (here \emph{church}) is taken as the classification result.
-  }
-  \label{fig:teacherforcing}
-\end{figure}
-
-
-
-\subsection{Results and Analysis}
-
-\Cref{tab:xeval} shows the cross-evaluation of image classification accuracy on the Imagenette dataset with different models and prompts.
-
-The clean dataset consists of 1024 original images from Imagenette. CLIP has the highest accuracy of $99.5\%$. VLMs with different prompts also have over $90\%$ accuracy, except LLaVA with prompt B and prompt C. This suggests that the image classification task on VLMs actually depends largely on the prompt. Another conjecture for the drop in accuracy is that LLaVA did not go through the instruction fine-tuning phase.
-
-We evaluate on two adversarial datasets. CLIP-Adv consists of 1024 adversarial examples attacking CLIP, and LLaVA-Adv consists of 128 adversarial examples attacking LLaVA. Our first observation is that the attack performance does not differ too much in the image01 space and the resized space. This means that the quantization into \texttt{uint8} does not degrade the attack. Also, the attack works in general. When evaluated by CLIP, CLIP-Adv only has $0.5\%$ accuracy of correct classification. Similarly, LLaVA-Adv has very low accuracy ($14\%$) on LLaVA with prompt A, where the attack of LLaVA-Adv is targeting.
-
-Then we investigate whether the attack generalizes to other models and prompts.
-We first notice the large difference of LLaVA with different prompts. On LLaVA-Adv, its accuracy recovers to $50\%$ with prompts B and C. This indicates the adversarial training on LLaVA is vulnerable to the change of prompts.
-On CLIP-Adv, LLaVA accuracy stays relatively stable. And on LLaVA-Adv, the performance of CLIP and VisualRWKV merely drops.
-This indicates the end-to-end adversarial training on LLaVA is overfitting on the language model structure or even the specific prompt A.
-Finally, we compare the attack performance of CLIP-Adv on LLaVA and VisualRWKV VLMs. We find that the attacks generalize better on VisualRWKV, with the original label accuracy of $38\%$, compared to over $40\%$ accuracy on LLaVA. This difference is explained by the structural difference of the models: VisualRWKV embeds the final layer features into the language model backbone, while LLaVA embeds the second last layer. Therefore the CLIP-Adv attacking target is closer to VisualRWKV. Also, we can see that different prompts do not introduce a large attack performance gap as in LLaVA on LLaVA-Adv. Since CLIP is the more low-level visual component, the adversarial examples trained on it do generalize to different prompts.
-
-\subsection{Case Study}
-
-We also use different prompts to investigate stability of adversarial examples in image classification with free generation. 
-We prepared an adversarial image trained with the same configurations on LLaVA, whose prediction is steered from the correct \texttt{tench} label to the target \texttt{cassette player} label. We prompt LLaVA with the adversarial image and the following questions, and got the responses individually. Here we use answer priming, and the part of model generation is displayed in \textbf{bold}.
-
-
-\begin{qatext}
-\textbf{Q:}~\textit{What is the main object in this photo? / Options: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute.}\\
-\textbf{A:}~The main object in this photo: \textbf{cassette player.}
-\par\smallskip
-\textbf{Q:}~\textit{What is the main object in this photo? / Options: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute.}\\
-\textbf{A:}~\textbf{Tench}
-\par\smallskip
-\textbf{Q:}~\textit{What is the main object in this photo?}\\
-\textbf{A:}~\textbf{The main object in this photo is a large fish, specifically a catfish, swimming in a body of water.}
-\par\smallskip
-\textbf{Q:}~\textit{What is the main object in this photo? Is it a tench or a cassette player?}\\
-\textbf{A:}~\textbf{The main object in this photo is a cassette player, not a tench. The cassette player is floating in the water, surrounded by two alligators.}
-\end{qatext}
-
-These attempts show that the model generation alternates between a fish and a cassette player. The performance is unstable, depending on the prompt and answer priming.
-In particular, the second answer remains \textbf{Tench} possibly because the model remembers to start the sentence with a capital letter, which is not optimized by \texttt{cassette player}.
-
-
-
-\begin{table}[b]
-  \centering
-  \caption{
-    The three prompt modes, shown as the \texttt{USER}/\texttt{ASSISTANT} conversation fed to the VLM.
-    Highlights: \hlQ{prompt (question)}, \hlP{answer priming}, and \hlT{candidate label scored by log-likelihood}.
-    For each image every class label is placed in the candidate slot; we score it by its log-likelihood under teacher forcing and predict the arg-max (\emph{``tench''} shown as an example).
-    Prompt A's option list is truncated here.
-  }
-  \label{tab:prompts}
-  \vspace{0.5em}
-  \footnotesize
-  \begin{tabular}{@{}c l@{}}
-    \toprule
-    Prompt & Conversation \\
-    \midrule
-    \multirow{2}{*}{A}
-      & \ttfamily USER: <image> \hlQ{What is the main object in this photo? Options: tench, \dots} \\[2pt]
-      & \ttfamily ASSISTANT: \hlP{The main object in this photo:}\hlT{ tench} \\
-    \midrule
-    \multirow{2}{*}{B}
-      & \ttfamily USER: <image> \hlQ{What is the main object in this photo?} \\[2pt]
-      & \ttfamily ASSISTANT: \hlP{The main object in this photo:}\hlT{ tench} \\
-    \midrule
-    \multirow{2}{*}{C}
-      & \ttfamily USER: <image> \hlQ{What can you see in the photo?} \\[2pt]
-      & \ttfamily ASSISTANT: \hlP{I can see a}\hlT{ tench} \\
-    \bottomrule
-  \end{tabular}
-\end{table}
-
-
-\begin{figure}[t]
+\begin{figure}[!t]
   \centering
   \setlength{\tabcolsep}{3pt}
   \begin{tabular}{@{}c@{\hspace{0.5em}}cccc@{}}
@@ -334,35 +226,138 @@ In particular, the second answer remains \textbf{Tench} possibly because the mod
   \label{fig:dataset}
 \end{figure}
 
+\subsection{Evaluation and Attack}
 
-\begin{table}[t]
+
+Unlike traditional CNN image classifiers, the output of the CLIP encoder and the two VLMs is not directly the classification, but an embedding or natural language, which requires special transformation.
+For CLIP, the image class is defined by the cosine similarity between the image embedding and the corresponding ten image caption embeddings. Each image caption here takes the form of \textit{``a photo of ...''}, suffixed with the class name, then transformed by the text encoder in CLIP.
+
+For the evaluation on LLaVA and VisualRWKV, we use an image with questions as the prompt, and the classification is determined by the ranking of log-likelihood on different class names as continuations. This method is illustrated in \Cref{fig:teacherforcing}. To investigate the influence of prompt text on the classification, we evaluate on three prompts, as is shown in \Cref{tab:prompts}. Prompt A asks \textit{``What is the main object in this photo?''}, with a hint of ten options. Prompt B removes the option hint. And prompt C asks the same question in a different way: \textit{``What can you see in the photo?''} Each of the questions is evaluated with corresponding answer priming.
+
+\begin{figure}[!htb]
+  \centering
+  $\begin{array}{r@{\hspace{1em}}l}
+    & \hspace{0.7em}\text{\footnotesize candidate}\hspace{5em}\text{\footnotesize logits} \\[1pt]
+    \text{\ttfamily ASSISTANT:}~\text{\hlP{The main object in this photo:}} &
+    \left\{\begin{array}{@{}l@{\hspace{1.5em}}l@{}}
+      \text{\hlT{tench}}            & \logit{15} \\[2pt]
+      \text{\hlT{church}}           & \logit{32}~\Rightarrow\,\text{\footnotesize prediction} \\[2pt]
+      \text{\hlT{English springer}} & \logit{22} \\[1pt]
+      \multicolumn{1}{c}{\vdots}    & \\[1pt]
+      \text{\hlT{parachute}}        & \logit{6} \\
+    \end{array}\right.
+  \end{array}$
+  \caption{
+    Log-likelihood classification. After the \texttt{ASSISTANT} tag and the fixed \hlP{answer priming}, every class label is placed in the \hlT{candidate} slot in turn.
+    Each candidate is scored by the model's log-likelihood (its logits, drawn as bars).
+    The candidate with the largest score (here \emph{church}) is taken as the classification result.
+  }
+  \label{fig:teacherforcing}
+\end{figure}
+
+\begin{table}[!b]
   \centering
   \caption{
-    Cross-evaluation of adversarial examples on Imagenette (accuracy in \%). \textcolor{gray}{Gray}: original label. Black: adversarial label.
+    The three prompt modes, shown as the \texttt{USER}/\texttt{ASSISTANT} conversation fed to the VLM.
+    Highlights: \hlQ{prompt (question)}, \hlP{answer priming}, and \hlT{candidate label scored by log-likelihood}.
+    For each image every class label is placed in the candidate slot; we score it by its log-likelihood under teacher forcing and predict the arg-max (\emph{``tench''} shown as an example).
+    Prompt A's option list is truncated here.
+  }
+  \label{tab:prompts}
+  \vspace{0.5em}
+  \footnotesize
+  \begin{tabular}{@{}c l@{}}
+    \toprule
+    Prompt & Conversation \\
+    \midrule
+    \multirow{2}{*}{A}
+      & \ttfamily USER: <image> \hlQ{What is the main object in this photo? Options: tench, \dots} \\[2pt]
+      & \ttfamily ASSISTANT: \hlP{The main object in this photo:}\hlT{ tench} \\
+    \midrule
+    \multirow{2}{*}{B}
+      & \ttfamily USER: <image> \hlQ{What is the main object in this photo?} \\[2pt]
+      & \ttfamily ASSISTANT: \hlP{The main object in this photo:}\hlT{ tench} \\
+    \midrule
+    \multirow{2}{*}{C}
+      & \ttfamily USER: <image> \hlQ{What can you see in the photo?} \\[2pt]
+      & \ttfamily ASSISTANT: \hlP{I can see a}\hlT{ tench} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+For the adversarial attack, our goal is to slightly modify the input image and steer the output to have the highest probability on one randomly sampled wrong class. The method is to fix the model weight and optimize the input image by gradient descent on the negative log-likelihood of the chosen label.
+During each step, we also enforce an error budget of RMS (root mean square) within 0.03, so that the modification is minimized.
+This attack is performed on the CLIP encoder and the LLaVA VLM, with attack targets of images in resized and image01 stage. 
+For LLaVA, the attack is carried out with prompt A.
+The generated adversarial examples are collected as adversarial datasets respectively, and \Cref{fig:dataset} shows examples of the adversarial examples trained on CLIP in the resized space. These images are misclassified by the CLIP model, and the modifications appear as mild noise in the background.
+
+
+\subsection{Results and Analysis}
+
+\Cref{tab:xeval} shows the cross-evaluation of image classification accuracy on the Imagenette dataset with different models and prompts.
+
+\begin{table}[!t]
+  \centering
+  \caption{
+    Cross-evaluation of adversarial examples on Imagenette (accuracy in \%).
+    \\ \textcolor{gray}{Gray}: original label. Black: adversarial label.
   }
   \label{tab:xeval}
   \vspace{0.5em}
   \small
-  \begin{tabular}{@{}ll|cccccc@{}}
+  \begin{tabular}{@{}ll|ccccc@{}}
     \toprule
-    \multirow{2}{*}{Model} & \multirow{2}{*}{Prompt} & \multirow{2}{*}{\shortstack{Clean\\(1024)}} & \multirow{2}{*}{Noise} & \multicolumn{2}{c}{CLIP-Adv (1024)} & \multicolumn{2}{c}{LLaVA-Adv (128)} \\
-    \cmidrule(lr){5-6} \cmidrule(lr){7-8}
-    & & & & image01 & resized & image01 & resized \\
+    \multirow{2}{*}{Model} & \multirow{2}{*}{Prompt} & \multirow{2}{*}{\shortstack{Clean\\(1024)}} & \multicolumn{2}{c}{CLIP-Adv (1024)} & \multicolumn{2}{c}{LLaVA-Adv (128)} \\
+    \cmidrule(lr){4-5} \cmidrule(lr){6-7}
+    & & & image01 & resized & image01 & resized \\
     \midrule
-    CLIP & --- & \ccell{99.5} & --- & \cell{0.5}{99.5} & \cell{0.3}{99.7} & \cell{82.8}{9.4} & \cell{82.0}{11.7} \\
+    CLIP & --- & \ccell{99.5} & \cell{0.5}{99.5} & \cell{0.3}{99.7} & \cell{82.8}{9.4} & \cell{82.0}{11.7} \\
     \midrule
     \multirow{3}{*}{LLaVA}
-      & A & \ccell{97.0} & --- & \cell{51.5}{39.1} & \cell{51.0}{39.5} & \cell{14.1}{75.0} & \cell{14.1}{76.6} \\
-      & B & \ccell{73.8}  & --- & \cell{40.5}{32.8} & \cell{40.8}{32.0} & \cell{47.7}{12.5} & \cell{44.5}{15.6} \\
-      & C & \ccell{70.4}  & --- & \cell{44.1}{31.7} & \cell{45.0}{31.0} & \cell{50.0}{11.7} & \cell{50.8}{11.7} \\
+      & A & \ccell{97.0} & \cell{51.5}{39.1} & \cell{51.0}{39.5} & \cell{14.1}{75.0} & \cell{14.1}{76.6} \\
+      & B & \ccell{73.8}  & \cell{40.5}{32.8} & \cell{40.8}{32.0} & \cell{47.7}{12.5} & \cell{44.5}{15.6} \\
+      & C & \ccell{70.4}  & \cell{44.1}{31.7} & \cell{45.0}{31.0} & \cell{50.0}{11.7} & \cell{50.8}{11.7} \\
     \midrule
     \multirow{3}{*}{VisualRWKV}
-      & A & \ccell{96.8}  & --- & \cell{39.1}{58.8} & \cell{38.0}{59.8} & \cell{70.3}{17.2} & \cell{71.1}{14.8} \\
-      & B & \ccell{93.1}  & --- & \cell{36.7}{54.7} & \cell{37.4}{54.0} & \cell{68.8}{15.6} & \cell{70.3}{12.5} \\
-      & C & \ccell{94.2}  & --- & \cell{38.9}{51.6} & \cell{38.4}{51.6} & \cell{70.3}{11.7} & \cell{66.4}{10.9} \\
+      & A & \ccell{96.8}  & \cell{39.1}{58.8} & \cell{38.0}{59.8} & \cell{70.3}{17.2} & \cell{71.1}{14.8} \\
+      & B & \ccell{93.1}  & \cell{36.7}{54.7} & \cell{37.4}{54.0} & \cell{68.8}{15.6} & \cell{70.3}{12.5} \\
+      & C & \ccell{94.2}  & \cell{38.9}{51.6} & \cell{38.4}{51.6} & \cell{70.3}{11.7} & \cell{66.4}{10.9} \\
     \bottomrule
   \end{tabular}
 \end{table}
+
+The clean dataset consists of 1024 original images from Imagenette. CLIP has the highest accuracy of $99.5\%$. VLMs with different prompts also have over $90\%$ accuracy, except LLaVA with prompt B and prompt C. This suggests that the image classification task on VLMs actually depends largely on the prompt. Another conjecture for the drop in accuracy is that LLaVA did not go through the instruction fine-tuning phase.
+
+We evaluate on two adversarial datasets. CLIP-Adv consists of 1024 adversarial examples attacking CLIP, and LLaVA-Adv consists of 128 adversarial examples attacking LLaVA. Our first observation is that the attack performance does not differ too much in the image01 space and the resized space. This means that the quantization into \texttt{uint8} does not degrade the attack. Also, the attack works on the targets. When evaluated by CLIP, CLIP-Adv only has $0.5\%$ accuracy of correct classification. Similarly, LLaVA-Adv has very low accuracy ($14\%$) on LLaVA with prompt A, where the attack of LLaVA-Adv is targeting.
+
+Then we investigate whether the attack generalizes to other models and prompts.
+We first notice the large difference of LLaVA with different prompts. On LLaVA-Adv, its accuracy recovers to $50\%$ with prompts B and C. This indicates the adversarial training on LLaVA is vulnerable to the change of prompts.
+On CLIP-Adv, LLaVA accuracy stays relatively stable. And on LLaVA-Adv, the performance of CLIP and VisualRWKV merely drops.
+This indicates the end-to-end adversarial training on LLaVA is overfitting on the language model structure or even the specific prompt A.
+Finally, we compare the attack performance of CLIP-Adv on LLaVA and VisualRWKV VLMs. We find that the attacks generalize better on VisualRWKV, with the original label accuracy of $38\%$, compared to over $40\%$ accuracy on LLaVA. This difference is explained by the structural difference of the models: VisualRWKV embeds the final layer features into the language model backbone, while LLaVA embeds the second last layer. Therefore the CLIP-Adv attacking target is closer to VisualRWKV. Also, we can see that different prompts do not introduce a large attack performance gap as in LLaVA on LLaVA-Adv. Since CLIP is the more low-level visual component, the adversarial examples trained on it do generalize to different prompts.
+
+\subsection{Case Study}
+
+We also use different prompts to investigate stability of adversarial examples in image classification with free generation. 
+We prepared an adversarial image trained with the same configurations on LLaVA, whose prediction is steered from the correct \texttt{tench} label to the target \texttt{cassette player} label. We prompt LLaVA with the adversarial image and the following questions, and got the responses individually. Here we use answer priming, and the part of model generation is displayed in \textbf{bold}.
+
+
+\begin{qatext}
+\textbf{Q:}~\textit{What is the main object in this photo? / Options: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute.}\\
+\textbf{A:}~The main object in this photo: \textbf{cassette player.}
+\par\smallskip
+\textbf{Q:}~\textit{What is the main object in this photo? / Options: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute.}\\
+\textbf{A:}~\textbf{Tench}
+\par\smallskip
+\textbf{Q:}~\textit{What is the main object in this photo?}\\
+\textbf{A:}~\textbf{The main object in this photo is a large fish, specifically a catfish, swimming in a body of water.}
+\par\smallskip
+\textbf{Q:}~\textit{What is the main object in this photo? Is it a tench or a cassette player?}\\
+\textbf{A:}~\textbf{The main object in this photo is a cassette player, not a tench. The cassette player is floating in the water, surrounded by two alligators.}
+\end{qatext}
+
+These attempts show that the model generation alternates between a fish and a cassette player. The performance is unstable, depending on the prompt and answer priming.
+In particular, the second answer remains \textbf{Tench} possibly because the model remembers to start the sentence with a capital letter, which is not optimized by \texttt{cassette player}.
 
 
 \section{Adversarial Examples for Jailbreak}
