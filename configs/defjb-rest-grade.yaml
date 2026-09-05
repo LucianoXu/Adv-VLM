@@ -1,0 +1,43 @@
+# The four transformed defence rows. The undefended baseline is already graded and
+# came back at 52.7% adversarial vs 19.3% clean, matching the matrix white-box cell --
+# so these rows are measured against an attack independently established as working.
+#
+# 4 rows x 300 prompts x 2 conditions = 2400 calls, paced at 150/min into a fresh
+# 10000/day bucket.
+
+
+- output_dir: results/defense/grade-jb-llava-jpeg75-4omini
+  task_type: VLM-SafeRLHF-grade
+  generations: results/defense/jb-llava-jpeg75/generations.json
+  judge:
+    name: gpt-4o-mini-2024-07-18
+    workers: 6
+    requests_per_minute: 150
+    max_retries: 12
+
+- output_dir: results/defense/grade-jb-llava-blur10-4omini
+  task_type: VLM-SafeRLHF-grade
+  generations: results/defense/jb-llava-blur10/generations.json
+  judge:
+    name: gpt-4o-mini-2024-07-18
+    workers: 6
+    requests_per_minute: 150
+    max_retries: 12
+
+- output_dir: results/defense/grade-jb-llava-bits3-4omini
+  task_type: VLM-SafeRLHF-grade
+  generations: results/defense/jb-llava-bits3/generations.json
+  judge:
+    name: gpt-4o-mini-2024-07-18
+    workers: 6
+    requests_per_minute: 150
+    max_retries: 12
+
+- output_dir: results/defense/grade-jb-llava-rspad-4omini
+  task_type: VLM-SafeRLHF-grade
+  generations: results/defense/jb-llava-rspad/generations.json
+  judge:
+    name: gpt-4o-mini-2024-07-18
+    workers: 6
+    requests_per_minute: 150
+    max_retries: 12

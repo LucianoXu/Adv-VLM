@@ -1,0 +1,58 @@
+# Grading for configs/select-attack.yaml. Login node.
+
+
+- output_dir: results/select/grade-llava-lrsweep
+  task_type: VLM-SafeRLHF-grade
+  generations: results/select/gen-llava-lrsweep/generations.json
+  judge:
+    name: gpt-4.1-2025-04-14
+    workers: 6
+    requests_per_minute: 300
+
+- output_dir: results/select/grade-llava-s42
+  task_type: VLM-SafeRLHF-grade
+  generations: results/select/gen-llava-s42/generations.json
+  judge:
+    name: gpt-4.1-2025-04-14
+    workers: 6
+    requests_per_minute: 300
+
+- output_dir: results/select/grade-llava-s43
+  task_type: VLM-SafeRLHF-grade
+  generations: results/select/gen-llava-s43/generations.json
+  judge:
+    name: gpt-4.1-2025-04-14
+    workers: 6
+    requests_per_minute: 300
+
+- output_dir: results/select/grade-llava-s44
+  task_type: VLM-SafeRLHF-grade
+  generations: results/select/gen-llava-s44/generations.json
+  judge:
+    name: gpt-4.1-2025-04-14
+    workers: 6
+    requests_per_minute: 300
+
+- output_dir: results/select/grade-rwkv-s42
+  task_type: VLM-SafeRLHF-grade
+  generations: results/select/gen-rwkv-s42/generations.json
+  judge:
+    name: gpt-4.1-2025-04-14
+    workers: 6
+    requests_per_minute: 300
+
+- output_dir: results/select/grade-rwkv-s43
+  task_type: VLM-SafeRLHF-grade
+  generations: results/select/gen-rwkv-s43/generations.json
+  judge:
+    name: gpt-4.1-2025-04-14
+    workers: 6
+    requests_per_minute: 300
+
+- output_dir: results/select/grade-rwkv-s44
+  task_type: VLM-SafeRLHF-grade
+  generations: results/select/gen-rwkv-s44/generations.json
+  judge:
+    name: gpt-4.1-2025-04-14
+    workers: 6
+    requests_per_minute: 300

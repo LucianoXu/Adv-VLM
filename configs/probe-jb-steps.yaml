@@ -1,0 +1,47 @@
+# Diagnostic probe 2: had the scaled-up attack plateaued by step 200?
+#
+# Probe 1 established that the new 256-pool image reaches 51% compliance vs a 20%
+# clean baseline, against 57% for the original 64-pool image. Before spending ~2.6 h
+# retraining all six attacks with a longer schedule, measure whether the extra
+# epochs would buy anything: the new run saw ~3 epochs (200 steps x bs 4 over 256
+# pairs) where the original saw ~6.
+#
+# The attack already checkpointed every 25 steps, so this is free of any retraining:
+# evaluate the seed-42 image at step 100 and step 150 on the same 100 prompts as
+# probe 1, and compare against its own final value of 51%.
+#
+#   still climbing at 200  -> lengthen the schedule and rerun stage D
+#   flat from ~100 onward  -> 51% is the honest ceiling for a 256-pair pool; proceed
+#
+# include_clean is off: probe 1 already measured the shared 20% clean baseline on
+# this exact prompt list.
+#
+#   sbatch scripts/run_config.sbatch configs/probe-jb-steps.yaml
+
+- output_dir: results/probe/gen-new-s42-step100
+  task_type: VLM-SafeRLHF-gen
+  vlm:
+    name: LLaVA
+    device: auto
+  data_path: PKU-SafeRLHF/data/Alpaca3-8B/test.jsonl
+  adv_image: results/jailbreak/attack-llava-s42/checkpoints/adv_step00100.pt
+  batch_size: 16
+  limit: 100
+  shuffle: false
+  seed: 42
+  max_new_tokens: 256
+  include_clean: false
+
+- output_dir: results/probe/gen-new-s42-step150
+  task_type: VLM-SafeRLHF-gen
+  vlm:
+    name: LLaVA
+    device: auto
+  data_path: PKU-SafeRLHF/data/Alpaca3-8B/test.jsonl
+  adv_image: results/jailbreak/attack-llava-s42/checkpoints/adv_step00150.pt
+  batch_size: 16
+  limit: 100
+  shuffle: false
+  seed: 42
+  max_new_tokens: 256
+  include_clean: false

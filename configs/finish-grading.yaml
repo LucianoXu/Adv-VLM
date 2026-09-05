@@ -1,0 +1,47 @@
+# The five input-transformation defence rows, regraded under the primary judge.
+#
+# PACING NOTE: gpt-4o-mini is capped per DAY (10000 requests), not per minute. An
+# earlier run of this config paced at 400/min and drained the whole day in ~25
+# minutes -- rejected 429s consume budget too, so retry storms accelerate it. 100/min
+# with 5000 total calls leaves ample headroom in a fresh 10000 bucket. Check
+# x-ratelimit-remaining-requests before launching.
+- output_dir: results/defense/grade-jb-llava-none-4omini
+  task_type: VLM-SafeRLHF-grade
+  generations: results/defense/jb-llava-none/generations.json
+  judge:
+    name: gpt-4o-mini-2024-07-18
+    workers: 8
+    requests_per_minute: 100
+    max_retries: 12
+- output_dir: results/defense/grade-jb-llava-jpeg75-4omini
+  task_type: VLM-SafeRLHF-grade
+  generations: results/defense/jb-llava-jpeg75/generations.json
+  judge:
+    name: gpt-4o-mini-2024-07-18
+    workers: 8
+    requests_per_minute: 100
+    max_retries: 12
+- output_dir: results/defense/grade-jb-llava-blur10-4omini
+  task_type: VLM-SafeRLHF-grade
+  generations: results/defense/jb-llava-blur10/generations.json
+  judge:
+    name: gpt-4o-mini-2024-07-18
+    workers: 8
+    requests_per_minute: 100
+    max_retries: 12
+- output_dir: results/defense/grade-jb-llava-bits3-4omini
+  task_type: VLM-SafeRLHF-grade
+  generations: results/defense/jb-llava-bits3/generations.json
+  judge:
+    name: gpt-4o-mini-2024-07-18
+    workers: 8
+    requests_per_minute: 100
+    max_retries: 12
+- output_dir: results/defense/grade-jb-llava-rspad-4omini
+  task_type: VLM-SafeRLHF-grade
+  generations: results/defense/jb-llava-rspad/generations.json
+  judge:
+    name: gpt-4o-mini-2024-07-18
+    workers: 8
+    requests_per_minute: 100
+    max_retries: 12

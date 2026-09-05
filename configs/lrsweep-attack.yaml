@@ -1,0 +1,71 @@
+# Learning-rate sweep for the universal jailbreak attack, selected on VALIDATION.
+#
+# Why this exists: at the published lr of 0.1 the attack does not converge, it
+# oscillates. Sweeping the checkpoints of a 400-step run on validation gave
+#   step     0    50   100   150   200   250   300   350   400
+#   compl 19.0  23.0  27.5  36.0  37.5  22.5  45.0  43.5  12.0   (clean 18.5)
+# and an independent rerun at the exact published setting (64 pairs, 100 steps,
+# lr 0.1, seed 42) landed at 19.5% -- i.e. no effect at all -- while the archived
+# original image from that same setting reaches 57%. A procedure whose outcome
+# ranges from 19.5% to 57% across runs is not a measurement, it is a lottery.
+#
+# The suspected cause is simply too large a step on an unbounded image. This sweeps
+# lr over a decade at a fixed 300 steps, checkpointing every 50, so both lr and the
+# stopping point can be chosen from one set of runs. Selection happens on
+# dataset/saferlhf_val.jsonl (train-side prompts, all attack-pool prompts removed);
+# the test prompts the paper reports are never used to choose anything.
+#
+# Pool stays at the published 64 pairs and seed at 42 so lr is the only variable.
+#
+#   sbatch scripts/run_config.sbatch configs/lrsweep-attack.yaml
+
+- output_dir: results/lrsweep/attack-lr100
+  task_type: VLM-SafeRLHF-attack
+  vlm:
+    name: LLaVA
+    device: auto
+  data_path: PKU-SafeRLHF/data/Alpaca3-8B/train.jsonl
+  batch_size: 4
+  limit: 64
+  shuffle: true
+  seed: 42
+  attack:
+    space: image01
+    max_steps: 300
+    lr: 0.1
+    save_every: 50
+    init_image: null
+
+- output_dir: results/lrsweep/attack-lr030
+  task_type: VLM-SafeRLHF-attack
+  vlm:
+    name: LLaVA
+    device: auto
+  data_path: PKU-SafeRLHF/data/Alpaca3-8B/train.jsonl
+  batch_size: 4
+  limit: 64
+  shuffle: true
+  seed: 42
+  attack:
+    space: image01
+    max_steps: 300
+    lr: 0.03
+    save_every: 50
+    init_image: null
+
+- output_dir: results/lrsweep/attack-lr010
+  task_type: VLM-SafeRLHF-attack
+  vlm:
+    name: LLaVA
+    device: auto
+  data_path: PKU-SafeRLHF/data/Alpaca3-8B/train.jsonl
+  batch_size: 4
+  limit: 64
+  shuffle: true
+  seed: 42
+  attack:
+    space: image01
+    max_steps: 300
+    lr: 0.01
+    save_every: 50
+    init_image: null

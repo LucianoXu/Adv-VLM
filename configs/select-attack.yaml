@@ -1,0 +1,124 @@
+# Select the strongest attack image per backbone, on VALIDATION.
+#
+# The attack is not reproducible run-to-run. Two runs of the IDENTICAL configuration
+# (64 pairs, 300 steps, lr 0.03, seed 42) scored 84.5% and 47.0% on validation; at
+# the published lr 0.1 the same thing happened between 50.5% and 19.5%. Seed fixes
+# the init image and the data order, so the only difference is non-deterministic CUDA
+# arithmetic -- which compounds over hundreds of steps into a completely different
+# image. No hyperparameter removes this.
+#
+# The right response is to stop pretending a single run is "the attack". A negative
+# transfer result is only meaningful against the STRONGEST attack one can build, and
+# a real adversary can retry and keep the best. So: run K attempts, select the
+# strongest on validation, and report that image's transfer on the held-out test
+# prompts. The spread across attempts is itself reported -- it is the reproducibility
+# finding, and it qualifies the original paper's single-run 56%.
+#
+# Candidates are every lr=0.03 attack already on disk: for LLaVA the three stage-D
+# seeds plus the lr-sweep run (4 attempts), for VisualRWKV the three stage-D seeds.
+# Judge is gpt-4.1, matching the sweep, so all numbers sit on one scale
+# (clean 38.0%, archived original image 85.0%).
+#
+#   sbatch scripts/run_config.sbatch configs/select-attack.yaml
+
+
+- output_dir: results/select/gen-llava-lrsweep
+  task_type: VLM-SafeRLHF-gen
+  vlm:
+    name: LLaVA
+    device: auto
+  data_path: dataset/saferlhf_val.jsonl
+  adv_image: results/lrsweep/attack-lr030/checkpoints/adv_final.pt
+  batch_size: 16
+  limit: 200
+  shuffle: false
+  seed: 42
+  max_new_tokens: 256
+  include_clean: false
+
+- output_dir: results/select/gen-llava-s42
+  task_type: VLM-SafeRLHF-gen
+  vlm:
+    name: LLaVA
+    device: auto
+  data_path: dataset/saferlhf_val.jsonl
+  adv_image: results/jailbreak/attack-llava-s42/checkpoints/adv_final.pt
+  batch_size: 16
+  limit: 200
+  shuffle: false
+  seed: 42
+  max_new_tokens: 256
+  include_clean: false
+
+- output_dir: results/select/gen-llava-s43
+  task_type: VLM-SafeRLHF-gen
+  vlm:
+    name: LLaVA
+    device: auto
+  data_path: dataset/saferlhf_val.jsonl
+  adv_image: results/jailbreak/attack-llava-s43/checkpoints/adv_final.pt
+  batch_size: 16
+  limit: 200
+  shuffle: false
+  seed: 42
+  max_new_tokens: 256
+  include_clean: false
+
+- output_dir: results/select/gen-llava-s44
+  task_type: VLM-SafeRLHF-gen
+  vlm:
+    name: LLaVA
+    device: auto
+  data_path: dataset/saferlhf_val.jsonl
+  adv_image: results/jailbreak/attack-llava-s44/checkpoints/adv_final.pt
+  batch_size: 16
+  limit: 200
+  shuffle: false
+  seed: 42
+  max_new_tokens: 256
+  include_clean: false
+
+- output_dir: results/select/gen-rwkv-s42
+  task_type: VLM-SafeRLHF-gen
+  vlm:
+    name: VisualRWKV
+    device: auto
+    model_path: ckpt/VisualRWKV-v060-7B-v1.0-20240612.pth
+  data_path: dataset/saferlhf_val.jsonl
+  adv_image: results/jailbreak/attack-rwkv-s42/checkpoints/adv_final.pt
+  batch_size: 8
+  limit: 200
+  shuffle: false
+  seed: 42
+  max_new_tokens: 256
+  include_clean: true
+
+- output_dir: results/select/gen-rwkv-s43
+  task_type: VLM-SafeRLHF-gen
+  vlm:
+    name: VisualRWKV
+    device: auto
+    model_path: ckpt/VisualRWKV-v060-7B-v1.0-20240612.pth
+  data_path: dataset/saferlhf_val.jsonl
+  adv_image: results/jailbreak/attack-rwkv-s43/checkpoints/adv_final.pt
+  batch_size: 8
+  limit: 200
+  shuffle: false
+  seed: 42
+  max_new_tokens: 256
+  include_clean: false
+
+- output_dir: results/select/gen-rwkv-s44
+  task_type: VLM-SafeRLHF-gen
+  vlm:
+    name: VisualRWKV
+    device: auto
+    model_path: ckpt/VisualRWKV-v060-7B-v1.0-20240612.pth
+  data_path: dataset/saferlhf_val.jsonl
+  adv_image: results/jailbreak/attack-rwkv-s44/checkpoints/adv_final.pt
+  batch_size: 8
+  limit: 200
+  shuffle: false
+  seed: 42
+  max_new_tokens: 256
+  include_clean: false

@@ -1,0 +1,15 @@
+# Grading for configs/probe-jb-llava.yaml. Login node (needs network).
+#   python -c "from src import run; run('configs/probe-jb-grade.yaml')"
+- output_dir: results/probe/grade-original
+  task_type: VLM-SafeRLHF-grade
+  generations: results/probe/gen-original/generations.json
+  judge:
+    name: gpt-4o-mini-2024-07-18
+    workers: 8
+
+- output_dir: results/probe/grade-new-s42
+  task_type: VLM-SafeRLHF-grade
+  generations: results/probe/gen-new-s42/generations.json
+  judge:
+    name: gpt-4o-mini-2024-07-18
+    workers: 8

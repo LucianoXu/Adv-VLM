@@ -1,0 +1,50 @@
+# Smoke test: minimal end-to-end check of the three model paths (CLIP, LLaVA,
+# VisualRWKV) on the CLEAN Imagenette benchmark, after an environment rebuild.
+#
+# Deliberately tiny limits -- this exists to prove the venv, the HF cache, the
+# dataset on disk, the RWKV checkpoint and the WKV6 CUDA JIT all work, and to
+# collect per-image timing for budgeting the real runs. Prompt mode A matches
+# configs/xeval-clean.yaml (closed-set w/ Options) so the numbers are comparable.
+
+- output_dir: results/smoke/clip
+  task_type: CLIP-ImageClass
+  clip:
+    device: auto
+  benchmark:
+    name: imagenette
+    local_path: dataset/imagenette2-320
+  batch_size: 32
+  limit: 64
+  shuffle: true
+  seed: 42
+
+- output_dir: results/smoke/llava
+  task_type: VLM-ImageClass
+  vlm:
+    name: LLaVA
+    device: auto
+  benchmark:
+    name: imagenette
+    local_path: dataset/imagenette2-320
+  question: "What is the main object in this photo?\nOptions: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute."
+  answer_priming: "The main object in this photo:"
+  batch_size: 16
+  limit: 32
+  shuffle: true
+  seed: 42
+
+- output_dir: results/smoke/rwkv
+  task_type: VLM-ImageClass
+  vlm:
+    name: VisualRWKV
+    device: auto
+    model_path: ckpt/VisualRWKV-v060-7B-v1.0-20240612.pth
+  benchmark:
+    name: imagenette
+    local_path: dataset/imagenette2-320
+  question: "What is the main object in this photo?\nOptions: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute."
+  answer_priming: "The main object in this photo:"
+  batch_size: 8
+  limit: 16
+  shuffle: true
+  seed: 42

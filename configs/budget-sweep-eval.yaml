@@ -1,0 +1,270 @@
+# Perturbation-budget sweep, stage 2/2: measure transfer.
+#
+# Evaluates each of the five CLIP-crafted adversarial datasets from
+# configs/budget-sweep-attack.yaml on three models:
+#   clip  -- white-box sanity check that the attack landed at this budget
+#   llava -- transfer to a softmax-attention (Vicuna) backbone
+#   rwkv  -- transfer to a linear-attention (RWKV-6) backbone
+#
+# Prompt A only (the closed-set question with the option list). The main table
+# already establishes prompt sensitivity; here we hold the prompt fixed so the
+# only moving variable is the perturbation budget.
+#
+# imagenette-adv reports accuracy_original (robust accuracy on the true label)
+# and accuracy_attack (targeted success rate). The curve we want is
+# accuracy_original vs eps, one line per model.
+#
+#   sbatch scripts/run_config.sbatch configs/budget-sweep-eval.yaml
+#
+# Requires configs/budget-sweep-attack.yaml to have completed first.
+
+
+- output_dir: results/budget/eval-clip-eps010
+  task_type: CLIP-ImageClass
+  clip:
+    device: auto
+  benchmark:
+    name: imagenette-adv
+    local_path: results/budget/clip-attack-eps010/dataset
+    attack_type: resized
+  batch_size: 256
+  limit: null
+  shuffle: false
+  seed: 42
+
+- output_dir: results/budget/eval-llava-eps010
+  task_type: VLM-ImageClass
+  vlm:
+    name: LLaVA
+    device: auto
+  benchmark:
+    name: imagenette-adv
+    local_path: results/budget/clip-attack-eps010/dataset
+    attack_type: resized
+  question: |-
+    What is the main object in this photo?
+    Options: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute.
+  answer_priming: "The main object in this photo:"
+  batch_size: 32
+  limit: null
+  shuffle: false
+  seed: 42
+
+- output_dir: results/budget/eval-rwkv-eps010
+  task_type: VLM-ImageClass
+  vlm:
+    name: VisualRWKV
+    device: auto
+    model_path: ckpt/VisualRWKV-v060-7B-v1.0-20240612.pth
+  benchmark:
+    name: imagenette-adv
+    local_path: results/budget/clip-attack-eps010/dataset
+    attack_type: resized
+  question: |-
+    What is the main object in this photo?
+    Options: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute.
+  answer_priming: "The main object in this photo:"
+  batch_size: 16
+  limit: null
+  shuffle: false
+  seed: 42
+
+- output_dir: results/budget/eval-clip-eps020
+  task_type: CLIP-ImageClass
+  clip:
+    device: auto
+  benchmark:
+    name: imagenette-adv
+    local_path: results/budget/clip-attack-eps020/dataset
+    attack_type: resized
+  batch_size: 256
+  limit: null
+  shuffle: false
+  seed: 42
+
+- output_dir: results/budget/eval-llava-eps020
+  task_type: VLM-ImageClass
+  vlm:
+    name: LLaVA
+    device: auto
+  benchmark:
+    name: imagenette-adv
+    local_path: results/budget/clip-attack-eps020/dataset
+    attack_type: resized
+  question: |-
+    What is the main object in this photo?
+    Options: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute.
+  answer_priming: "The main object in this photo:"
+  batch_size: 32
+  limit: null
+  shuffle: false
+  seed: 42
+
+- output_dir: results/budget/eval-rwkv-eps020
+  task_type: VLM-ImageClass
+  vlm:
+    name: VisualRWKV
+    device: auto
+    model_path: ckpt/VisualRWKV-v060-7B-v1.0-20240612.pth
+  benchmark:
+    name: imagenette-adv
+    local_path: results/budget/clip-attack-eps020/dataset
+    attack_type: resized
+  question: |-
+    What is the main object in this photo?
+    Options: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute.
+  answer_priming: "The main object in this photo:"
+  batch_size: 16
+  limit: null
+  shuffle: false
+  seed: 42
+
+- output_dir: results/budget/eval-clip-eps030
+  task_type: CLIP-ImageClass
+  clip:
+    device: auto
+  benchmark:
+    name: imagenette-adv
+    local_path: results/budget/clip-attack-eps030/dataset
+    attack_type: resized
+  batch_size: 256
+  limit: null
+  shuffle: false
+  seed: 42
+
+- output_dir: results/budget/eval-llava-eps030
+  task_type: VLM-ImageClass
+  vlm:
+    name: LLaVA
+    device: auto
+  benchmark:
+    name: imagenette-adv
+    local_path: results/budget/clip-attack-eps030/dataset
+    attack_type: resized
+  question: |-
+    What is the main object in this photo?
+    Options: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute.
+  answer_priming: "The main object in this photo:"
+  batch_size: 32
+  limit: null
+  shuffle: false
+  seed: 42
+
+- output_dir: results/budget/eval-rwkv-eps030
+  task_type: VLM-ImageClass
+  vlm:
+    name: VisualRWKV
+    device: auto
+    model_path: ckpt/VisualRWKV-v060-7B-v1.0-20240612.pth
+  benchmark:
+    name: imagenette-adv
+    local_path: results/budget/clip-attack-eps030/dataset
+    attack_type: resized
+  question: |-
+    What is the main object in this photo?
+    Options: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute.
+  answer_priming: "The main object in this photo:"
+  batch_size: 16
+  limit: null
+  shuffle: false
+  seed: 42
+
+- output_dir: results/budget/eval-clip-eps060
+  task_type: CLIP-ImageClass
+  clip:
+    device: auto
+  benchmark:
+    name: imagenette-adv
+    local_path: results/budget/clip-attack-eps060/dataset
+    attack_type: resized
+  batch_size: 256
+  limit: null
+  shuffle: false
+  seed: 42
+
+- output_dir: results/budget/eval-llava-eps060
+  task_type: VLM-ImageClass
+  vlm:
+    name: LLaVA
+    device: auto
+  benchmark:
+    name: imagenette-adv
+    local_path: results/budget/clip-attack-eps060/dataset
+    attack_type: resized
+  question: |-
+    What is the main object in this photo?
+    Options: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute.
+  answer_priming: "The main object in this photo:"
+  batch_size: 32
+  limit: null
+  shuffle: false
+  seed: 42
+
+- output_dir: results/budget/eval-rwkv-eps060
+  task_type: VLM-ImageClass
+  vlm:
+    name: VisualRWKV
+    device: auto
+    model_path: ckpt/VisualRWKV-v060-7B-v1.0-20240612.pth
+  benchmark:
+    name: imagenette-adv
+    local_path: results/budget/clip-attack-eps060/dataset
+    attack_type: resized
+  question: |-
+    What is the main object in this photo?
+    Options: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute.
+  answer_priming: "The main object in this photo:"
+  batch_size: 16
+  limit: null
+  shuffle: false
+  seed: 42
+
+- output_dir: results/budget/eval-clip-eps100
+  task_type: CLIP-ImageClass
+  clip:
+    device: auto
+  benchmark:
+    name: imagenette-adv
+    local_path: results/budget/clip-attack-eps100/dataset
+    attack_type: resized
+  batch_size: 256
+  limit: null
+  shuffle: false
+  seed: 42
+
+- output_dir: results/budget/eval-llava-eps100
+  task_type: VLM-ImageClass
+  vlm:
+    name: LLaVA
+    device: auto
+  benchmark:
+    name: imagenette-adv
+    local_path: results/budget/clip-attack-eps100/dataset
+    attack_type: resized
+  question: |-
+    What is the main object in this photo?
+    Options: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute.
+  answer_priming: "The main object in this photo:"
+  batch_size: 32
+  limit: null
+  shuffle: false
+  seed: 42
+
+- output_dir: results/budget/eval-rwkv-eps100
+  task_type: VLM-ImageClass
+  vlm:
+    name: VisualRWKV
+    device: auto
+    model_path: ckpt/VisualRWKV-v060-7B-v1.0-20240612.pth
+  benchmark:
+    name: imagenette-adv
+    local_path: results/budget/clip-attack-eps100/dataset
+    attack_type: resized
+  question: |-
+    What is the main object in this photo?
+    Options: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute.
+  answer_priming: "The main object in this photo:"
+  batch_size: 16
+  limit: null
+  shuffle: false
+  seed: 42

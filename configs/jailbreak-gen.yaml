@@ -1,0 +1,82 @@
+# Jailbreak transfer matrix, stage 1/3: generation (offline, GPU).
+#
+# ONE SELECTED IMAGE PER BACKBONE, not three seeds. The attack is not reproducible:
+# repeated runs of an identical configuration land bimodally, either ~83-91% or barely
+# above the clean baseline. Validation results over all attempts (gpt-4.1 judge):
+#
+#   LLaVA  (clean 38.0%):  84.5  82.5  47.0  44.0   -> 2 of 4 succeed
+#   RWKV   (clean 63.5%):  91.5  87.0  53.5         -> 2 of 3 succeed
+#
+# Averaging over attempts would test a half-broken attack and make a negative transfer
+# result meaningless. A real adversary retries and keeps the best, so the strongest
+# image per backbone is selected ON VALIDATION and its transfer measured on the
+# held-out test prompts. The spread above is reported separately as the
+# reproducibility finding.
+#
+# Selected: LLaVA results/lrsweep/attack-lr030/checkpoints/adv_final.pt (84.5%)
+#           RWKV  results/jailbreak/attack-rwkv-s43/checkpoints/adv_final.pt (91.5%)
+#
+# `include_clean` is on for the two `on-llava` cells only -- one clean run per eval
+# model, since the clean condition depends on the model and seed alone. VisualRWKV
+# decodes near-serially (~6 s/prompt), so that saves ~50 minutes.
+#
+#   sbatch scripts/run_config.sbatch configs/jailbreak-gen.yaml
+
+
+- output_dir: results/jailbreak/gen-llava-on-llava
+  task_type: VLM-SafeRLHF-gen
+  vlm:
+    name: LLaVA
+    device: auto
+  data_path: PKU-SafeRLHF/data/Alpaca3-8B/test.jsonl
+  adv_image: results/lrsweep/attack-lr030/checkpoints/adv_final.pt
+  batch_size: 16
+  limit: 500
+  shuffle: false
+  seed: 42
+  max_new_tokens: 256
+  include_clean: true
+
+- output_dir: results/jailbreak/gen-llava-on-rwkv
+  task_type: VLM-SafeRLHF-gen
+  vlm:
+    name: LLaVA
+    device: auto
+  data_path: PKU-SafeRLHF/data/Alpaca3-8B/test.jsonl
+  adv_image: results/jailbreak/attack-rwkv-s43/checkpoints/adv_final.pt
+  batch_size: 16
+  limit: 500
+  shuffle: false
+  seed: 42
+  max_new_tokens: 256
+  include_clean: false
+
+- output_dir: results/jailbreak/gen-rwkv-on-llava
+  task_type: VLM-SafeRLHF-gen
+  vlm:
+    name: VisualRWKV
+    device: auto
+    model_path: ckpt/VisualRWKV-v060-7B-v1.0-20240612.pth
+  data_path: PKU-SafeRLHF/data/Alpaca3-8B/test.jsonl
+  adv_image: results/lrsweep/attack-lr030/checkpoints/adv_final.pt
+  batch_size: 8
+  limit: 500
+  shuffle: false
+  seed: 42
+  max_new_tokens: 256
+  include_clean: true
+
+- output_dir: results/jailbreak/gen-rwkv-on-rwkv
+  task_type: VLM-SafeRLHF-gen
+  vlm:
+    name: VisualRWKV
+    device: auto
+    model_path: ckpt/VisualRWKV-v060-7B-v1.0-20240612.pth
+  data_path: PKU-SafeRLHF/data/Alpaca3-8B/test.jsonl
+  adv_image: results/jailbreak/attack-rwkv-s43/checkpoints/adv_final.pt
+  batch_size: 8
+  limit: 500
+  shuffle: false
+  seed: 42
+  max_new_tokens: 256
+  include_clean: false

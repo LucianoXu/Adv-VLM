@@ -1,0 +1,121 @@
+# Universal jailbreak attack on LLaVA -- 3 independent runs.
+#
+# Scaled up from the original single run (64-pair pool, 100 steps, one seed):
+# the pool is now 256 unsafe (prompt, response) pairs and each run takes 200 Adam
+# steps, which is ~3 epochs at batch size 4. Three runs give the spread needed to
+# report a mean rather than a single point.
+#
+# `seed` varies the random image initialization AND the sampled training pool, so
+# the three runs are independent draws of the whole attack, not just of the init.
+# That is the quantity we want an interval on: how reliably the attack works, not
+# how sensitive one fixed pool is to its starting image.
+#
+# Trained on the PKU-SafeRLHF *train* split; every evaluation uses held-out prompts
+# from the *test* split (1354 unique unsafe prompts available there).
+#
+#
+# SCHEDULE AND POOL SIZE -- settled by measurement, after two failures.
+#
+# This config originally scaled the attack up from the published setting (64-pair
+# pool, 100 steps) to 256 pairs, on the theory that a universal image covering more
+# requests is a stronger claim. That was wrong twice over:
+#
+#   200 steps over 256 pairs -> 51% compliance, apparently still climbing
+#   400 steps over 256 pairs -> 21.6%, barely above the 20.2% clean baseline
+#
+# Sweeping the saved checkpoints on a contamination-free validation split (400 train
+# prompts, all 740 attack-pool prompts removed) showed why: the trajectory is not
+# converging at all, it is oscillating.
+#
+#   step     0    50   100   150   200   250   300   350   400
+#   compl 19.0  23.0  27.5  36.0  37.5  22.5  45.0  43.5  12.0   (clean 18.5)
+#
+# Adam at lr 0.1 on an unbounded image is unstable, and the best point anywhere on
+# that curve (45%) is still below what the published 64-pair setting reliably gives
+# (57%, reproduced from the archived original image on the same prompts). Selecting
+# step 300 would be picking a lucky point on a noisy path.
+#
+# So the pool and schedule revert to the published values. What this submission adds
+# over the original is orthogonal to them and is kept: three seeds instead of one,
+# 500 held-out test prompts instead of 100, Wilson intervals, a paired McNemar test,
+# a second judge, and the reverse attack direction on VisualRWKV.
+#
+#
+# LEARNING RATE -- selected on validation, after the published lr=0.1 proved
+# irreproducible. Sweeping lr x stopping point on dataset/saferlhf_val.jsonl
+# (train-side prompts, all attack-pool prompts removed), judged by gpt-4.1
+# (clean baseline 38.0%, archived original image 85.0%):
+#
+#      lr    step50  step100  step200  step300
+#    0.10      45.5     57.0     41.0     48.5    <- wanders, never converges
+#    0.03      38.5     39.5     45.5     84.5    <- converges; matches the original
+#    0.01      38.0     43.5     43.0     52.5    <- too slow, still climbing
+#
+# lr 0.03 at 300 steps reaches 84.5%, indistinguishable from the archived original
+# image (85.0%) under the same judge, and its curve rises monotonically rather than
+# oscillating. lr 0.1 is the published value and is the reason two independent runs
+# of the identical configuration and seed produced 50.5% and 19.5%: at that step size
+# the optimisation does not converge, so the published result was one lucky draw.
+#
+# Pool stays at the published 64 pairs. Only lr and the step count change.
+#
+# The perturbation is unbounded (image only clamped to [0,1]) -- this is a
+# from-scratch adversarial image, not a perturbation of a natural photo, so an RMS
+# budget would not be meaningful.
+#
+# Final image of each run lands at:
+#   results/jailbreak/attack-llava-s<seed>/checkpoints/adv_final.pt
+# which is what configs/jailbreak-gen.yaml consumes.
+#
+#   sbatch scripts/run_config.sbatch configs/jailbreak-attack-llava.yaml
+
+- output_dir: results/jailbreak/attack-llava-s42
+  task_type: VLM-SafeRLHF-attack
+  vlm:
+    name: LLaVA
+    device: auto
+  data_path: PKU-SafeRLHF/data/Alpaca3-8B/train.jsonl
+  batch_size: 4
+  limit: 64
+  shuffle: true
+  seed: 42
+  attack:
+    space: image01
+    max_steps: 300
+    lr: 0.03
+    save_every: 50
+    init_image: null
+
+- output_dir: results/jailbreak/attack-llava-s43
+  task_type: VLM-SafeRLHF-attack
+  vlm:
+    name: LLaVA
+    device: auto
+  data_path: PKU-SafeRLHF/data/Alpaca3-8B/train.jsonl
+  batch_size: 4
+  limit: 64
+  shuffle: true
+  seed: 43
+  attack:
+    space: image01
+    max_steps: 300
+    lr: 0.03
+    save_every: 50
+    init_image: null
+
+- output_dir: results/jailbreak/attack-llava-s44
+  task_type: VLM-SafeRLHF-attack
+  vlm:
+    name: LLaVA
+    device: auto
+  data_path: PKU-SafeRLHF/data/Alpaca3-8B/train.jsonl
+  batch_size: 4
+  limit: 64
+  shuffle: true
+  seed: 44
+  attack:
+    space: image01
+    max_steps: 300
+    lr: 0.03
+    save_every: 50
+    init_image: null

@@ -1,0 +1,116 @@
+# Perturbation-budget sweep, stage 1/2: craft the attacks.
+#
+# Five encoder-level (CLIP) attacks on the same 256 Imagenette images, differing
+# only in the RMS budget. Feeds configs/budget-sweep-eval.yaml, which measures how
+# far each budget transfers to LLaVA and VisualRWKV. Together these replace the
+# single-budget transfer numbers with a transfer-vs-budget curve.
+#
+# Budget encoding in the output dir name is thousandths of an RMS unit:
+#   eps010 = 0.010, eps020 = 0.020, eps030 = 0.030, eps060 = 0.060, eps100 = 0.100
+# eps030 is the budget used everywhere else in the paper, so it is the anchor point.
+#
+# Attacks run in the `resized` (uint8) space via a straight-through estimator, matching
+# the main cross-evaluation table: the perturbation survives quantization, so each
+# adversarial example is a real 8-bit image file rather than a float tensor. That is
+# the deployable threat model, and it is also the one the input-transformation
+# defences act on meaningfully.
+#
+# lr is scaled with the budget (lr = eps/5) to keep the step-size-to-budget ratio
+# fixed at the value the main experiments use (eps 0.03 / lr 0.006). train_steps
+# stays at 20 for all budgets so the attacks differ in budget alone.
+#
+# Same limit/shuffle/seed as the main runs, so all five sweeps and the main
+# CLIP-Adv dataset draw from the same shuffled Imagenette order -- the 256 images
+# here are the first 256 of the 1024 used in tab:xeval.
+#
+#   sbatch scripts/run_config.sbatch configs/budget-sweep-attack.yaml
+
+- output_dir: results/budget/clip-attack-eps010
+  task_type: CLIP-ImageClass-Attack
+  clip:
+    device: auto
+  benchmark:
+    name: imagenette
+    local_path: dataset/imagenette2-320
+  batch_size: 32
+  limit: 256
+  shuffle: true
+  seed: 42
+  attack:
+    space: resized
+    train_steps: 20
+    eps: 0.01
+    lr: 0.002
+    label_template: a photo of a {}
+
+- output_dir: results/budget/clip-attack-eps020
+  task_type: CLIP-ImageClass-Attack
+  clip:
+    device: auto
+  benchmark:
+    name: imagenette
+    local_path: dataset/imagenette2-320
+  batch_size: 32
+  limit: 256
+  shuffle: true
+  seed: 42
+  attack:
+    space: resized
+    train_steps: 20
+    eps: 0.02
+    lr: 0.004
+    label_template: a photo of a {}
+
+- output_dir: results/budget/clip-attack-eps030
+  task_type: CLIP-ImageClass-Attack
+  clip:
+    device: auto
+  benchmark:
+    name: imagenette
+    local_path: dataset/imagenette2-320
+  batch_size: 32
+  limit: 256
+  shuffle: true
+  seed: 42
+  attack:
+    space: resized
+    train_steps: 20
+    eps: 0.03
+    lr: 0.006
+    label_template: a photo of a {}
+
+- output_dir: results/budget/clip-attack-eps060
+  task_type: CLIP-ImageClass-Attack
+  clip:
+    device: auto
+  benchmark:
+    name: imagenette
+    local_path: dataset/imagenette2-320
+  batch_size: 32
+  limit: 256
+  shuffle: true
+  seed: 42
+  attack:
+    space: resized
+    train_steps: 20
+    eps: 0.06
+    lr: 0.012
+    label_template: a photo of a {}
+
+- output_dir: results/budget/clip-attack-eps100
+  task_type: CLIP-ImageClass-Attack
+  clip:
+    device: auto
+  benchmark:
+    name: imagenette
+    local_path: dataset/imagenette2-320
+  batch_size: 32
+  limit: 256
+  shuffle: true
+  seed: 42
+  attack:
+    space: resized
+    train_steps: 20
+    eps: 0.1
+    lr: 0.02
+    label_template: a photo of a {}

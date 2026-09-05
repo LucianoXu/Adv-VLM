@@ -1,0 +1,54 @@
+# Grading for configs/jailbreak-gen.yaml. Login node (network + OPENAI_API_KEY).
+# Primary judge gpt-4o-mini-2024-07-18 (the original paper's, so numbers stay
+# comparable); cross-check gpt-4.1 on the two white-box cells. See the judge
+# validation table in results/judge-validation/summary.json -- four graders span
+# 6%-85% on identical text, so the judge is a first-order experimental variable.
+
+
+- output_dir: results/jailbreak/grade-llava-on-llava-4omini
+  task_type: VLM-SafeRLHF-grade
+  generations: results/jailbreak/gen-llava-on-llava/generations.json
+  judge:
+    name: gpt-4o-mini-2024-07-18
+    workers: 8
+    requests_per_minute: 120
+
+- output_dir: results/jailbreak/grade-llava-on-llava-gpt41
+  task_type: VLM-SafeRLHF-grade
+  generations: results/jailbreak/gen-llava-on-llava/generations.json
+  judge:
+    name: gpt-4.1-2025-04-14
+    workers: 6
+    requests_per_minute: 300
+
+- output_dir: results/jailbreak/grade-llava-on-rwkv-4omini
+  task_type: VLM-SafeRLHF-grade
+  generations: results/jailbreak/gen-llava-on-rwkv/generations.json
+  judge:
+    name: gpt-4o-mini-2024-07-18
+    workers: 8
+    requests_per_minute: 120
+
+- output_dir: results/jailbreak/grade-rwkv-on-llava-4omini
+  task_type: VLM-SafeRLHF-grade
+  generations: results/jailbreak/gen-rwkv-on-llava/generations.json
+  judge:
+    name: gpt-4o-mini-2024-07-18
+    workers: 8
+    requests_per_minute: 120
+
+- output_dir: results/jailbreak/grade-rwkv-on-rwkv-4omini
+  task_type: VLM-SafeRLHF-grade
+  generations: results/jailbreak/gen-rwkv-on-rwkv/generations.json
+  judge:
+    name: gpt-4o-mini-2024-07-18
+    workers: 8
+    requests_per_minute: 120
+
+- output_dir: results/jailbreak/grade-rwkv-on-rwkv-gpt41
+  task_type: VLM-SafeRLHF-grade
+  generations: results/jailbreak/gen-rwkv-on-rwkv/generations.json
+  judge:
+    name: gpt-4.1-2025-04-14
+    workers: 6
+    requests_per_minute: 300

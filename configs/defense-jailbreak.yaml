@@ -1,0 +1,107 @@
+# Mitigation baseline: inference-time input transformations, jailbreak task.
+#
+# ATTACK IMAGE: results/lrsweep/attack-lr030/checkpoints/adv_final.pt -- the image
+# SELECTED on validation (84.5% there, 52.2% on the test prompts). An earlier version
+# of this config pointed at results/jailbreak/attack-llava-s42/, which at generation
+# time held a FAILED attack draw (21.6% adversarial against a 20.2% clean baseline).
+# Measuring a defence against an attack that does not work measures nothing, and the
+# resulting rows were correspondingly flat. The attack must be established as working
+# before a defence is credited with stopping it.
+#
+# 300 held-out test prompts rather than 500: the five rows need 2 x 300 x 5 = 3000
+# judge calls against a 10000/day cap, and the effect being measured (a 40-point drop
+# in targeted success on the classification side) is far larger than the +-6 point
+# interval 300 prompts gives.
+#
+# include_clean stays on: the benign-image compliance rate UNDER each transform is
+# the cost side of the trade-off. A transform that suppressed the attack but raised
+# baseline compliance would be a bad deal, and only the clean column shows that.
+#
+#   sbatch scripts/run_config.sbatch configs/defense-jailbreak.yaml
+#
+# Requires configs/jailbreak-attack-llava.yaml to have completed first.
+
+
+- output_dir: results/defense/jb-llava-none
+  task_type: VLM-SafeRLHF-gen
+  vlm:
+    name: LLaVA
+    device: auto
+  data_path: PKU-SafeRLHF/data/Alpaca3-8B/test.jsonl
+  adv_image: results/lrsweep/attack-lr030/checkpoints/adv_final.pt
+  batch_size: 16
+  limit: 300
+  shuffle: false
+  seed: 42
+  max_new_tokens: 256
+  include_clean: true
+
+- output_dir: results/defense/jb-llava-jpeg75
+  task_type: VLM-SafeRLHF-gen
+  vlm:
+    name: LLaVA
+    device: auto
+  data_path: PKU-SafeRLHF/data/Alpaca3-8B/test.jsonl
+  adv_image: results/lrsweep/attack-lr030/checkpoints/adv_final.pt
+  batch_size: 16
+  limit: 300
+  shuffle: false
+  seed: 42
+  max_new_tokens: 256
+  include_clean: true
+  defense:
+    name: jpeg
+    quality: 75
+
+- output_dir: results/defense/jb-llava-blur10
+  task_type: VLM-SafeRLHF-gen
+  vlm:
+    name: LLaVA
+    device: auto
+  data_path: PKU-SafeRLHF/data/Alpaca3-8B/test.jsonl
+  adv_image: results/lrsweep/attack-lr030/checkpoints/adv_final.pt
+  batch_size: 16
+  limit: 300
+  shuffle: false
+  seed: 42
+  max_new_tokens: 256
+  include_clean: true
+  defense:
+    name: blur
+    sigma: 1.0
+
+- output_dir: results/defense/jb-llava-bits3
+  task_type: VLM-SafeRLHF-gen
+  vlm:
+    name: LLaVA
+    device: auto
+  data_path: PKU-SafeRLHF/data/Alpaca3-8B/test.jsonl
+  adv_image: results/lrsweep/attack-lr030/checkpoints/adv_final.pt
+  batch_size: 16
+  limit: 300
+  shuffle: false
+  seed: 42
+  max_new_tokens: 256
+  include_clean: true
+  defense:
+    name: bit_depth
+    bits: 3
+
+- output_dir: results/defense/jb-llava-rspad
+  task_type: VLM-SafeRLHF-gen
+  vlm:
+    name: LLaVA
+    device: auto
+  data_path: PKU-SafeRLHF/data/Alpaca3-8B/test.jsonl
+  adv_image: results/lrsweep/attack-lr030/checkpoints/adv_final.pt
+  batch_size: 16
+  limit: 300
+  shuffle: false
+  seed: 42
+  max_new_tokens: 256
+  include_clean: true
+  defense:
+    name: resize_pad
+    scale_min: 0.85
+    scale_max: 1.0
+    seed: 42

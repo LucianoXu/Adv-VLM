@@ -1,0 +1,53 @@
+# Diagnostic probe: is the scaled-up jailbreak attack as strong as the original?
+#
+# The three new LLaVA attack runs (256-pair pool, 200 steps) show almost no loss
+# descent -- total drift -0.10 / -0.07 / +0.005 against a per-step sd of ~0.18.
+# That could mean the scale-up broke the attack, OR it could be a red herring:
+# compliance is a threshold behaviour, so a small shift in response log-likelihood
+# can still flip greedy decoding from refusal to compliance.
+#
+# Loss cannot settle this. The outcome can. So this runs a POSITIVE CONTROL:
+#
+#   probe-original  the adversarial image from the ORIGINAL run, whose outcome is
+#                   known and archived: 56% adversarial vs 18% clean on exactly
+#                   these 100 prompts (limit 100, shuffle false, seed 42), judged
+#                   by gpt-4o-mini. Reproducing that number validates the whole
+#                   gen+grade path against a fixed reference point.
+#   probe-new-s42   the seed-42 image from the scaled-up run, same 100 prompts.
+#
+# If the control reproduces ~56% and the new image does not, the hyperparameters
+# are the problem and stage E must not run as configured. If both land near 56%,
+# the flat loss trace is noise and the pipeline proceeds.
+#
+# include_clean is on only for the control: the clean condition depends on the
+# model and seed alone, so it is shared, and reproducing 18% is part of the check.
+#
+#   sbatch scripts/run_config.sbatch configs/probe-jb-llava.yaml
+
+- output_dir: results/probe/gen-original
+  task_type: VLM-SafeRLHF-gen
+  vlm:
+    name: LLaVA
+    device: auto
+  data_path: PKU-SafeRLHF/data/Alpaca3-8B/test.jsonl
+  adv_image: results/_original-run/saferlhf_attack/adv_final.pt
+  batch_size: 16
+  limit: 100
+  shuffle: false
+  seed: 42
+  max_new_tokens: 256
+  include_clean: true
+
+- output_dir: results/probe/gen-new-s42
+  task_type: VLM-SafeRLHF-gen
+  vlm:
+    name: LLaVA
+    device: auto
+  data_path: PKU-SafeRLHF/data/Alpaca3-8B/test.jsonl
+  adv_image: results/jailbreak/attack-llava-s42/checkpoints/adv_final.pt
+  batch_size: 16
+  limit: 100
+  shuffle: false
+  seed: 42
+  max_new_tokens: 256
+  include_clean: false

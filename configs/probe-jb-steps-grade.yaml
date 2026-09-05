@@ -1,0 +1,14 @@
+# Grading for configs/probe-jb-steps.yaml. Login node.
+- output_dir: results/probe/grade-new-s42-step100
+  task_type: VLM-SafeRLHF-grade
+  generations: results/probe/gen-new-s42-step100/generations.json
+  judge:
+    name: gpt-4o-mini-2024-07-18
+    workers: 8
+
+- output_dir: results/probe/grade-new-s42-step150
+  task_type: VLM-SafeRLHF-grade
+  generations: results/probe/gen-new-s42-step150/generations.json
+  judge:
+    name: gpt-4o-mini-2024-07-18
+    workers: 8

@@ -1,0 +1,595 @@
+# Mitigation baseline: inference-time input transformations, classification task.
+#
+# Four transformations plus an undefended control, applied to the image01 tensor
+# just before it reaches the vision encoder. No component is retrained -- this is
+# the cheapest thing a deployment can actually turn on, and the point is the
+# trade-off it buys: clean accuracy cost against robustness gain.
+#
+#   none    undefended control
+#   jpeg75  JPEG re-encode at quality 75
+#   blur10  Gaussian blur, sigma 1.0
+#   bits3   bit-depth reduction to 3 bits per channel
+#   rspad   random resize to 85-100% and pad back to 336 at a random offset
+#
+# Clean and adversarial rows are the same 256 images: the `imagenette-adv` dataset
+# stores the original and the perturbed version of every example, so
+# `benchmark.name: imagenette` reads the clean side and `imagenette-adv` the
+# attacked side, over an identical sample. The attack is the eps=0.03 encoder-level
+# one from the budget sweep, so the `none` rows must reproduce that sweep's eps030
+# point -- an internal consistency check worth reading before trusting the table.
+#
+# Prompt A only. 256 images keeps the whole grid inside a couple of GPU-hours.
+#
+#   sbatch scripts/run_config.sbatch configs/defense-classify.yaml
+#
+# Requires configs/budget-sweep-attack.yaml to have completed first.
+
+
+- output_dir: results/defense/clip-clean-none
+  task_type: CLIP-ImageClass
+  clip:
+    device: auto
+  benchmark:
+    name: imagenette
+    local_path: dataset/imagenette2-320
+  batch_size: 256
+  limit: 256
+  shuffle: true
+  seed: 42
+
+- output_dir: results/defense/clip-adv-none
+  task_type: CLIP-ImageClass
+  clip:
+    device: auto
+  benchmark:
+    name: imagenette-adv
+    local_path: results/budget/clip-attack-eps030/dataset
+    attack_type: resized
+  batch_size: 256
+  limit: null
+  shuffle: false
+  seed: 42
+
+- output_dir: results/defense/clip-clean-jpeg75
+  task_type: CLIP-ImageClass
+  clip:
+    device: auto
+  benchmark:
+    name: imagenette
+    local_path: dataset/imagenette2-320
+  batch_size: 256
+  limit: 256
+  shuffle: true
+  seed: 42
+  defense:
+    name: jpeg
+    quality: 75
+
+- output_dir: results/defense/clip-adv-jpeg75
+  task_type: CLIP-ImageClass
+  clip:
+    device: auto
+  benchmark:
+    name: imagenette-adv
+    local_path: results/budget/clip-attack-eps030/dataset
+    attack_type: resized
+  batch_size: 256
+  limit: null
+  shuffle: false
+  seed: 42
+  defense:
+    name: jpeg
+    quality: 75
+
+- output_dir: results/defense/clip-clean-blur10
+  task_type: CLIP-ImageClass
+  clip:
+    device: auto
+  benchmark:
+    name: imagenette
+    local_path: dataset/imagenette2-320
+  batch_size: 256
+  limit: 256
+  shuffle: true
+  seed: 42
+  defense:
+    name: blur
+    sigma: 1.0
+
+- output_dir: results/defense/clip-adv-blur10
+  task_type: CLIP-ImageClass
+  clip:
+    device: auto
+  benchmark:
+    name: imagenette-adv
+    local_path: results/budget/clip-attack-eps030/dataset
+    attack_type: resized
+  batch_size: 256
+  limit: null
+  shuffle: false
+  seed: 42
+  defense:
+    name: blur
+    sigma: 1.0
+
+- output_dir: results/defense/clip-clean-bits3
+  task_type: CLIP-ImageClass
+  clip:
+    device: auto
+  benchmark:
+    name: imagenette
+    local_path: dataset/imagenette2-320
+  batch_size: 256
+  limit: 256
+  shuffle: true
+  seed: 42
+  defense:
+    name: bit_depth
+    bits: 3
+
+- output_dir: results/defense/clip-adv-bits3
+  task_type: CLIP-ImageClass
+  clip:
+    device: auto
+  benchmark:
+    name: imagenette-adv
+    local_path: results/budget/clip-attack-eps030/dataset
+    attack_type: resized
+  batch_size: 256
+  limit: null
+  shuffle: false
+  seed: 42
+  defense:
+    name: bit_depth
+    bits: 3
+
+- output_dir: results/defense/clip-clean-rspad
+  task_type: CLIP-ImageClass
+  clip:
+    device: auto
+  benchmark:
+    name: imagenette
+    local_path: dataset/imagenette2-320
+  batch_size: 256
+  limit: 256
+  shuffle: true
+  seed: 42
+  defense:
+    name: resize_pad
+    scale_min: 0.85
+    scale_max: 1.0
+    seed: 42
+
+- output_dir: results/defense/clip-adv-rspad
+  task_type: CLIP-ImageClass
+  clip:
+    device: auto
+  benchmark:
+    name: imagenette-adv
+    local_path: results/budget/clip-attack-eps030/dataset
+    attack_type: resized
+  batch_size: 256
+  limit: null
+  shuffle: false
+  seed: 42
+  defense:
+    name: resize_pad
+    scale_min: 0.85
+    scale_max: 1.0
+    seed: 42
+
+- output_dir: results/defense/llava-clean-none
+  task_type: VLM-ImageClass
+  vlm:
+    name: LLaVA
+    device: auto
+  question: |-
+    What is the main object in this photo?
+    Options: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute.
+  answer_priming: "The main object in this photo:"
+  benchmark:
+    name: imagenette
+    local_path: dataset/imagenette2-320
+  batch_size: 32
+  limit: 256
+  shuffle: true
+  seed: 42
+
+- output_dir: results/defense/llava-adv-none
+  task_type: VLM-ImageClass
+  vlm:
+    name: LLaVA
+    device: auto
+  question: |-
+    What is the main object in this photo?
+    Options: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute.
+  answer_priming: "The main object in this photo:"
+  benchmark:
+    name: imagenette-adv
+    local_path: results/budget/clip-attack-eps030/dataset
+    attack_type: resized
+  batch_size: 32
+  limit: null
+  shuffle: false
+  seed: 42
+
+- output_dir: results/defense/llava-clean-jpeg75
+  task_type: VLM-ImageClass
+  vlm:
+    name: LLaVA
+    device: auto
+  question: |-
+    What is the main object in this photo?
+    Options: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute.
+  answer_priming: "The main object in this photo:"
+  benchmark:
+    name: imagenette
+    local_path: dataset/imagenette2-320
+  batch_size: 32
+  limit: 256
+  shuffle: true
+  seed: 42
+  defense:
+    name: jpeg
+    quality: 75
+
+- output_dir: results/defense/llava-adv-jpeg75
+  task_type: VLM-ImageClass
+  vlm:
+    name: LLaVA
+    device: auto
+  question: |-
+    What is the main object in this photo?
+    Options: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute.
+  answer_priming: "The main object in this photo:"
+  benchmark:
+    name: imagenette-adv
+    local_path: results/budget/clip-attack-eps030/dataset
+    attack_type: resized
+  batch_size: 32
+  limit: null
+  shuffle: false
+  seed: 42
+  defense:
+    name: jpeg
+    quality: 75
+
+- output_dir: results/defense/llava-clean-blur10
+  task_type: VLM-ImageClass
+  vlm:
+    name: LLaVA
+    device: auto
+  question: |-
+    What is the main object in this photo?
+    Options: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute.
+  answer_priming: "The main object in this photo:"
+  benchmark:
+    name: imagenette
+    local_path: dataset/imagenette2-320
+  batch_size: 32
+  limit: 256
+  shuffle: true
+  seed: 42
+  defense:
+    name: blur
+    sigma: 1.0
+
+- output_dir: results/defense/llava-adv-blur10
+  task_type: VLM-ImageClass
+  vlm:
+    name: LLaVA
+    device: auto
+  question: |-
+    What is the main object in this photo?
+    Options: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute.
+  answer_priming: "The main object in this photo:"
+  benchmark:
+    name: imagenette-adv
+    local_path: results/budget/clip-attack-eps030/dataset
+    attack_type: resized
+  batch_size: 32
+  limit: null
+  shuffle: false
+  seed: 42
+  defense:
+    name: blur
+    sigma: 1.0
+
+- output_dir: results/defense/llava-clean-bits3
+  task_type: VLM-ImageClass
+  vlm:
+    name: LLaVA
+    device: auto
+  question: |-
+    What is the main object in this photo?
+    Options: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute.
+  answer_priming: "The main object in this photo:"
+  benchmark:
+    name: imagenette
+    local_path: dataset/imagenette2-320
+  batch_size: 32
+  limit: 256
+  shuffle: true
+  seed: 42
+  defense:
+    name: bit_depth
+    bits: 3
+
+- output_dir: results/defense/llava-adv-bits3
+  task_type: VLM-ImageClass
+  vlm:
+    name: LLaVA
+    device: auto
+  question: |-
+    What is the main object in this photo?
+    Options: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute.
+  answer_priming: "The main object in this photo:"
+  benchmark:
+    name: imagenette-adv
+    local_path: results/budget/clip-attack-eps030/dataset
+    attack_type: resized
+  batch_size: 32
+  limit: null
+  shuffle: false
+  seed: 42
+  defense:
+    name: bit_depth
+    bits: 3
+
+- output_dir: results/defense/llava-clean-rspad
+  task_type: VLM-ImageClass
+  vlm:
+    name: LLaVA
+    device: auto
+  question: |-
+    What is the main object in this photo?
+    Options: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute.
+  answer_priming: "The main object in this photo:"
+  benchmark:
+    name: imagenette
+    local_path: dataset/imagenette2-320
+  batch_size: 32
+  limit: 256
+  shuffle: true
+  seed: 42
+  defense:
+    name: resize_pad
+    scale_min: 0.85
+    scale_max: 1.0
+    seed: 42
+
+- output_dir: results/defense/llava-adv-rspad
+  task_type: VLM-ImageClass
+  vlm:
+    name: LLaVA
+    device: auto
+  question: |-
+    What is the main object in this photo?
+    Options: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute.
+  answer_priming: "The main object in this photo:"
+  benchmark:
+    name: imagenette-adv
+    local_path: results/budget/clip-attack-eps030/dataset
+    attack_type: resized
+  batch_size: 32
+  limit: null
+  shuffle: false
+  seed: 42
+  defense:
+    name: resize_pad
+    scale_min: 0.85
+    scale_max: 1.0
+    seed: 42
+
+- output_dir: results/defense/rwkv-clean-none
+  task_type: VLM-ImageClass
+  vlm:
+    name: VisualRWKV
+    device: auto
+    model_path: ckpt/VisualRWKV-v060-7B-v1.0-20240612.pth
+  question: |-
+    What is the main object in this photo?
+    Options: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute.
+  answer_priming: "The main object in this photo:"
+  benchmark:
+    name: imagenette
+    local_path: dataset/imagenette2-320
+  batch_size: 16
+  limit: 256
+  shuffle: true
+  seed: 42
+
+- output_dir: results/defense/rwkv-adv-none
+  task_type: VLM-ImageClass
+  vlm:
+    name: VisualRWKV
+    device: auto
+    model_path: ckpt/VisualRWKV-v060-7B-v1.0-20240612.pth
+  question: |-
+    What is the main object in this photo?
+    Options: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute.
+  answer_priming: "The main object in this photo:"
+  benchmark:
+    name: imagenette-adv
+    local_path: results/budget/clip-attack-eps030/dataset
+    attack_type: resized
+  batch_size: 16
+  limit: null
+  shuffle: false
+  seed: 42
+
+- output_dir: results/defense/rwkv-clean-jpeg75
+  task_type: VLM-ImageClass
+  vlm:
+    name: VisualRWKV
+    device: auto
+    model_path: ckpt/VisualRWKV-v060-7B-v1.0-20240612.pth
+  question: |-
+    What is the main object in this photo?
+    Options: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute.
+  answer_priming: "The main object in this photo:"
+  benchmark:
+    name: imagenette
+    local_path: dataset/imagenette2-320
+  batch_size: 16
+  limit: 256
+  shuffle: true
+  seed: 42
+  defense:
+    name: jpeg
+    quality: 75
+
+- output_dir: results/defense/rwkv-adv-jpeg75
+  task_type: VLM-ImageClass
+  vlm:
+    name: VisualRWKV
+    device: auto
+    model_path: ckpt/VisualRWKV-v060-7B-v1.0-20240612.pth
+  question: |-
+    What is the main object in this photo?
+    Options: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute.
+  answer_priming: "The main object in this photo:"
+  benchmark:
+    name: imagenette-adv
+    local_path: results/budget/clip-attack-eps030/dataset
+    attack_type: resized
+  batch_size: 16
+  limit: null
+  shuffle: false
+  seed: 42
+  defense:
+    name: jpeg
+    quality: 75
+
+- output_dir: results/defense/rwkv-clean-blur10
+  task_type: VLM-ImageClass
+  vlm:
+    name: VisualRWKV
+    device: auto
+    model_path: ckpt/VisualRWKV-v060-7B-v1.0-20240612.pth
+  question: |-
+    What is the main object in this photo?
+    Options: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute.
+  answer_priming: "The main object in this photo:"
+  benchmark:
+    name: imagenette
+    local_path: dataset/imagenette2-320
+  batch_size: 16
+  limit: 256
+  shuffle: true
+  seed: 42
+  defense:
+    name: blur
+    sigma: 1.0
+
+- output_dir: results/defense/rwkv-adv-blur10
+  task_type: VLM-ImageClass
+  vlm:
+    name: VisualRWKV
+    device: auto
+    model_path: ckpt/VisualRWKV-v060-7B-v1.0-20240612.pth
+  question: |-
+    What is the main object in this photo?
+    Options: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute.
+  answer_priming: "The main object in this photo:"
+  benchmark:
+    name: imagenette-adv
+    local_path: results/budget/clip-attack-eps030/dataset
+    attack_type: resized
+  batch_size: 16
+  limit: null
+  shuffle: false
+  seed: 42
+  defense:
+    name: blur
+    sigma: 1.0
+
+- output_dir: results/defense/rwkv-clean-bits3
+  task_type: VLM-ImageClass
+  vlm:
+    name: VisualRWKV
+    device: auto
+    model_path: ckpt/VisualRWKV-v060-7B-v1.0-20240612.pth
+  question: |-
+    What is the main object in this photo?
+    Options: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute.
+  answer_priming: "The main object in this photo:"
+  benchmark:
+    name: imagenette
+    local_path: dataset/imagenette2-320
+  batch_size: 16
+  limit: 256
+  shuffle: true
+  seed: 42
+  defense:
+    name: bit_depth
+    bits: 3
+
+- output_dir: results/defense/rwkv-adv-bits3
+  task_type: VLM-ImageClass
+  vlm:
+    name: VisualRWKV
+    device: auto
+    model_path: ckpt/VisualRWKV-v060-7B-v1.0-20240612.pth
+  question: |-
+    What is the main object in this photo?
+    Options: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute.
+  answer_priming: "The main object in this photo:"
+  benchmark:
+    name: imagenette-adv
+    local_path: results/budget/clip-attack-eps030/dataset
+    attack_type: resized
+  batch_size: 16
+  limit: null
+  shuffle: false
+  seed: 42
+  defense:
+    name: bit_depth
+    bits: 3
+
+- output_dir: results/defense/rwkv-clean-rspad
+  task_type: VLM-ImageClass
+  vlm:
+    name: VisualRWKV
+    device: auto
+    model_path: ckpt/VisualRWKV-v060-7B-v1.0-20240612.pth
+  question: |-
+    What is the main object in this photo?
+    Options: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute.
+  answer_priming: "The main object in this photo:"
+  benchmark:
+    name: imagenette
+    local_path: dataset/imagenette2-320
+  batch_size: 16
+  limit: 256
+  shuffle: true
+  seed: 42
+  defense:
+    name: resize_pad
+    scale_min: 0.85
+    scale_max: 1.0
+    seed: 42
+
+- output_dir: results/defense/rwkv-adv-rspad
+  task_type: VLM-ImageClass
+  vlm:
+    name: VisualRWKV
+    device: auto
+    model_path: ckpt/VisualRWKV-v060-7B-v1.0-20240612.pth
+  question: |-
+    What is the main object in this photo?
+    Options: tench, English springer, cassette player, chain saw, church, French horn, garbage truck, gas pump, golf ball, parachute.
+  answer_priming: "The main object in this photo:"
+  benchmark:
+    name: imagenette-adv
+    local_path: results/budget/clip-attack-eps030/dataset
+    attack_type: resized
+  batch_size: 16
+  limit: null
+  shuffle: false
+  seed: 42
+  defense:
+    name: resize_pad
+    scale_min: 0.85
+    scale_max: 1.0
+    seed: 42

@@ -1,0 +1,66 @@
+# Grading for configs/schedule-select.yaml. Login node.
+#   python -c "from src import run; run('configs/schedule-select-grade.yaml')"
+
+
+- output_dir: results/schedule/grade-step00000
+  task_type: VLM-SafeRLHF-grade
+  generations: results/schedule/gen-step00000/generations.json
+  judge:
+    name: gpt-4o-mini-2024-07-18
+    workers: 8
+
+- output_dir: results/schedule/grade-step00050
+  task_type: VLM-SafeRLHF-grade
+  generations: results/schedule/gen-step00050/generations.json
+  judge:
+    name: gpt-4o-mini-2024-07-18
+    workers: 8
+
+- output_dir: results/schedule/grade-step00100
+  task_type: VLM-SafeRLHF-grade
+  generations: results/schedule/gen-step00100/generations.json
+  judge:
+    name: gpt-4o-mini-2024-07-18
+    workers: 8
+
+- output_dir: results/schedule/grade-step00150
+  task_type: VLM-SafeRLHF-grade
+  generations: results/schedule/gen-step00150/generations.json
+  judge:
+    name: gpt-4o-mini-2024-07-18
+    workers: 8
+
+- output_dir: results/schedule/grade-step00200
+  task_type: VLM-SafeRLHF-grade
+  generations: results/schedule/gen-step00200/generations.json
+  judge:
+    name: gpt-4o-mini-2024-07-18
+    workers: 8
+
+- output_dir: results/schedule/grade-step00250
+  task_type: VLM-SafeRLHF-grade
+  generations: results/schedule/gen-step00250/generations.json
+  judge:
+    name: gpt-4o-mini-2024-07-18
+    workers: 8
+
+- output_dir: results/schedule/grade-step00300
+  task_type: VLM-SafeRLHF-grade
+  generations: results/schedule/gen-step00300/generations.json
+  judge:
+    name: gpt-4o-mini-2024-07-18
+    workers: 8
+
+- output_dir: results/schedule/grade-step00350
+  task_type: VLM-SafeRLHF-grade
+  generations: results/schedule/gen-step00350/generations.json
+  judge:
+    name: gpt-4o-mini-2024-07-18
+    workers: 8
+
+- output_dir: results/schedule/grade-step00400
+  task_type: VLM-SafeRLHF-grade
+  generations: results/schedule/gen-step00400/generations.json
+  judge:
+    name: gpt-4o-mini-2024-07-18
+    workers: 8

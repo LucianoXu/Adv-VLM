@@ -1,0 +1,107 @@
+# Grading for configs/lrsweep-eval.yaml. Login node.
+#
+# Judge is gpt-4.1-2025-04-14, NOT the paper's primary gpt-4o-mini. Two reasons, and
+# both are about this being a selection diagnostic rather than a reported number:
+# gpt-4o-mini is capped at 10k requests/day and has ~450 left, while this sweep needs
+# 2400; and gpt-4.1 was validated on identical generations to detect the effect
+# strongly (+47.0 delta, agreeing with gpt-4o at +47.0), so it ranks checkpoints
+# reliably. What matters for selection is a consistent, sensitive judge across the
+# grid -- not comparability with the published numbers, which only the paper's
+# reported cells need.
+
+
+- output_dir: results/lrsweep/grade-lr100-s050
+  task_type: VLM-SafeRLHF-grade
+  generations: results/lrsweep/gen-lr100-s050/generations.json
+  judge:
+    name: gpt-4.1-2025-04-14
+    workers: 6
+    requests_per_minute: 300
+
+- output_dir: results/lrsweep/grade-lr100-s100
+  task_type: VLM-SafeRLHF-grade
+  generations: results/lrsweep/gen-lr100-s100/generations.json
+  judge:
+    name: gpt-4.1-2025-04-14
+    workers: 6
+    requests_per_minute: 300
+
+- output_dir: results/lrsweep/grade-lr100-s200
+  task_type: VLM-SafeRLHF-grade
+  generations: results/lrsweep/gen-lr100-s200/generations.json
+  judge:
+    name: gpt-4.1-2025-04-14
+    workers: 6
+    requests_per_minute: 300
+
+- output_dir: results/lrsweep/grade-lr100-s300
+  task_type: VLM-SafeRLHF-grade
+  generations: results/lrsweep/gen-lr100-s300/generations.json
+  judge:
+    name: gpt-4.1-2025-04-14
+    workers: 6
+    requests_per_minute: 300
+
+- output_dir: results/lrsweep/grade-lr030-s050
+  task_type: VLM-SafeRLHF-grade
+  generations: results/lrsweep/gen-lr030-s050/generations.json
+  judge:
+    name: gpt-4.1-2025-04-14
+    workers: 6
+    requests_per_minute: 300
+
+- output_dir: results/lrsweep/grade-lr030-s100
+  task_type: VLM-SafeRLHF-grade
+  generations: results/lrsweep/gen-lr030-s100/generations.json
+  judge:
+    name: gpt-4.1-2025-04-14
+    workers: 6
+    requests_per_minute: 300
+
+- output_dir: results/lrsweep/grade-lr030-s200
+  task_type: VLM-SafeRLHF-grade
+  generations: results/lrsweep/gen-lr030-s200/generations.json
+  judge:
+    name: gpt-4.1-2025-04-14
+    workers: 6
+    requests_per_minute: 300
+
+- output_dir: results/lrsweep/grade-lr030-s300
+  task_type: VLM-SafeRLHF-grade
+  generations: results/lrsweep/gen-lr030-s300/generations.json
+  judge:
+    name: gpt-4.1-2025-04-14
+    workers: 6
+    requests_per_minute: 300
+
+- output_dir: results/lrsweep/grade-lr010-s050
+  task_type: VLM-SafeRLHF-grade
+  generations: results/lrsweep/gen-lr010-s050/generations.json
+  judge:
+    name: gpt-4.1-2025-04-14
+    workers: 6
+    requests_per_minute: 300
+
+- output_dir: results/lrsweep/grade-lr010-s100
+  task_type: VLM-SafeRLHF-grade
+  generations: results/lrsweep/gen-lr010-s100/generations.json
+  judge:
+    name: gpt-4.1-2025-04-14
+    workers: 6
+    requests_per_minute: 300
+
+- output_dir: results/lrsweep/grade-lr010-s200
+  task_type: VLM-SafeRLHF-grade
+  generations: results/lrsweep/gen-lr010-s200/generations.json
+  judge:
+    name: gpt-4.1-2025-04-14
+    workers: 6
+    requests_per_minute: 300
+
+- output_dir: results/lrsweep/grade-lr010-s300
+  task_type: VLM-SafeRLHF-grade
+  generations: results/lrsweep/gen-lr010-s300/generations.json
+  judge:
+    name: gpt-4.1-2025-04-14
+    workers: 6
+    requests_per_minute: 300

@@ -1,0 +1,180 @@
+# Evaluate the lr sweep on VALIDATION: 3 learning rates x 4 stopping points.
+#
+# Picks both the learning rate and the stopping point from one grid, on
+# dataset/saferlhf_val.jsonl (train-side prompts, all attack-pool prompts removed).
+# The test prompts the paper reports never enter this choice.
+#
+# Reference points on this split: clean 18.5%; the published lr=0.1 / 100-step
+# setting reran to 19.5% (no effect) while the archived original image from that
+# same setting reaches 57% on test -- the variance this grid exists to remove.
+#
+#   sbatch scripts/run_config.sbatch configs/lrsweep-eval.yaml
+
+
+- output_dir: results/lrsweep/gen-lr100-s050
+  task_type: VLM-SafeRLHF-gen
+  vlm:
+    name: LLaVA
+    device: auto
+  data_path: dataset/saferlhf_val.jsonl
+  adv_image: results/lrsweep/attack-lr100/checkpoints/adv_step00050.pt
+  batch_size: 16
+  limit: 200
+  shuffle: false
+  seed: 42
+  max_new_tokens: 256
+  include_clean: false
+
+- output_dir: results/lrsweep/gen-lr100-s100
+  task_type: VLM-SafeRLHF-gen
+  vlm:
+    name: LLaVA
+    device: auto
+  data_path: dataset/saferlhf_val.jsonl
+  adv_image: results/lrsweep/attack-lr100/checkpoints/adv_step00100.pt
+  batch_size: 16
+  limit: 200
+  shuffle: false
+  seed: 42
+  max_new_tokens: 256
+  include_clean: false
+
+- output_dir: results/lrsweep/gen-lr100-s200
+  task_type: VLM-SafeRLHF-gen
+  vlm:
+    name: LLaVA
+    device: auto
+  data_path: dataset/saferlhf_val.jsonl
+  adv_image: results/lrsweep/attack-lr100/checkpoints/adv_step00200.pt
+  batch_size: 16
+  limit: 200
+  shuffle: false
+  seed: 42
+  max_new_tokens: 256
+  include_clean: false
+
+- output_dir: results/lrsweep/gen-lr100-s300
+  task_type: VLM-SafeRLHF-gen
+  vlm:
+    name: LLaVA
+    device: auto
+  data_path: dataset/saferlhf_val.jsonl
+  adv_image: results/lrsweep/attack-lr100/checkpoints/adv_final.pt
+  batch_size: 16
+  limit: 200
+  shuffle: false
+  seed: 42
+  max_new_tokens: 256
+  include_clean: false
+
+- output_dir: results/lrsweep/gen-lr030-s050
+  task_type: VLM-SafeRLHF-gen
+  vlm:
+    name: LLaVA
+    device: auto
+  data_path: dataset/saferlhf_val.jsonl
+  adv_image: results/lrsweep/attack-lr030/checkpoints/adv_step00050.pt
+  batch_size: 16
+  limit: 200
+  shuffle: false
+  seed: 42
+  max_new_tokens: 256
+  include_clean: false
+
+- output_dir: results/lrsweep/gen-lr030-s100
+  task_type: VLM-SafeRLHF-gen
+  vlm:
+    name: LLaVA
+    device: auto
+  data_path: dataset/saferlhf_val.jsonl
+  adv_image: results/lrsweep/attack-lr030/checkpoints/adv_step00100.pt
+  batch_size: 16
+  limit: 200
+  shuffle: false
+  seed: 42
+  max_new_tokens: 256
+  include_clean: false
+
+- output_dir: results/lrsweep/gen-lr030-s200
+  task_type: VLM-SafeRLHF-gen
+  vlm:
+    name: LLaVA
+    device: auto
+  data_path: dataset/saferlhf_val.jsonl
+  adv_image: results/lrsweep/attack-lr030/checkpoints/adv_step00200.pt
+  batch_size: 16
+  limit: 200
+  shuffle: false
+  seed: 42
+  max_new_tokens: 256
+  include_clean: false
+
+- output_dir: results/lrsweep/gen-lr030-s300
+  task_type: VLM-SafeRLHF-gen
+  vlm:
+    name: LLaVA
+    device: auto
+  data_path: dataset/saferlhf_val.jsonl
+  adv_image: results/lrsweep/attack-lr030/checkpoints/adv_final.pt
+  batch_size: 16
+  limit: 200
+  shuffle: false
+  seed: 42
+  max_new_tokens: 256
+  include_clean: false
+
+- output_dir: results/lrsweep/gen-lr010-s050
+  task_type: VLM-SafeRLHF-gen
+  vlm:
+    name: LLaVA
+    device: auto
+  data_path: dataset/saferlhf_val.jsonl
+  adv_image: results/lrsweep/attack-lr010/checkpoints/adv_step00050.pt
+  batch_size: 16
+  limit: 200
+  shuffle: false
+  seed: 42
+  max_new_tokens: 256
+  include_clean: false
+
+- output_dir: results/lrsweep/gen-lr010-s100
+  task_type: VLM-SafeRLHF-gen
+  vlm:
+    name: LLaVA
+    device: auto
+  data_path: dataset/saferlhf_val.jsonl
+  adv_image: results/lrsweep/attack-lr010/checkpoints/adv_step00100.pt
+  batch_size: 16
+  limit: 200
+  shuffle: false
+  seed: 42
+  max_new_tokens: 256
+  include_clean: false
+
+- output_dir: results/lrsweep/gen-lr010-s200
+  task_type: VLM-SafeRLHF-gen
+  vlm:
+    name: LLaVA
+    device: auto
+  data_path: dataset/saferlhf_val.jsonl
+  adv_image: results/lrsweep/attack-lr010/checkpoints/adv_step00200.pt
+  batch_size: 16
+  limit: 200
+  shuffle: false
+  seed: 42
+  max_new_tokens: 256
+  include_clean: false
+
+- output_dir: results/lrsweep/gen-lr010-s300
+  task_type: VLM-SafeRLHF-gen
+  vlm:
+    name: LLaVA
+    device: auto
+  data_path: dataset/saferlhf_val.jsonl
+  adv_image: results/lrsweep/attack-lr010/checkpoints/adv_final.pt
+  batch_size: 16
+  limit: 200
+  shuffle: false
+  seed: 42
+  max_new_tokens: 256
+  include_clean: false

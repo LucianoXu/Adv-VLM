@@ -1,0 +1,151 @@
+# Attack-schedule selection, done on VALIDATION data.
+#
+# The schedule has now defeated two rounds of a-priori reasoning. At 200 steps the
+# attack reached 51% compliance and was still climbing (40/44/51 at steps 100/150/200).
+# Extending to 400 steps on epoch-matching grounds COLLAPSED it to 21.6% -- barely
+# above the 20.2% clean baseline. So the objective has an interior optimum somewhere
+# between, and it cannot be found by argument.
+#
+# It also cannot be found on the test prompts: picking the step count that maximises
+# held-out test compliance is test-set selection, and the reported number would be
+# optimistically biased. So selection happens here, on `dataset/saferlhf_val.jsonl`
+# -- 400 unique prompts drawn from the PKU-SafeRLHF *train* split, with every prompt
+# appearing in any of the three attack pools (740 distinct prompts) removed.
+# Verified overlap with the attack pools: 0.
+#
+# The 400-step run already checkpointed every 50 steps, and a checkpoint at step S of
+# a 400-step run is exactly the state a S-step run would have reached (same seed, same
+# data order). So no retraining is needed: sweep the checkpoints, pick the argmax on
+# validation, and use that step count for every seed and both backbones.
+#
+# include_clean is on only for the step-0 task; the clean condition depends on the
+# model and seed alone, so one measurement serves as the baseline for the whole sweep.
+#
+#   sbatch scripts/run_config.sbatch configs/schedule-select.yaml
+
+
+- output_dir: results/schedule/gen-step00000
+  task_type: VLM-SafeRLHF-gen
+  vlm:
+    name: LLaVA
+    device: auto
+  data_path: dataset/saferlhf_val.jsonl
+  adv_image: results/jailbreak/attack-llava-s42/checkpoints/adv_step00000.pt
+  batch_size: 16
+  limit: 200
+  shuffle: false
+  seed: 42
+  max_new_tokens: 256
+  include_clean: true
+
+- output_dir: results/schedule/gen-step00050
+  task_type: VLM-SafeRLHF-gen
+  vlm:
+    name: LLaVA
+    device: auto
+  data_path: dataset/saferlhf_val.jsonl
+  adv_image: results/jailbreak/attack-llava-s42/checkpoints/adv_step00050.pt
+  batch_size: 16
+  limit: 200
+  shuffle: false
+  seed: 42
+  max_new_tokens: 256
+  include_clean: false
+
+- output_dir: results/schedule/gen-step00100
+  task_type: VLM-SafeRLHF-gen
+  vlm:
+    name: LLaVA
+    device: auto
+  data_path: dataset/saferlhf_val.jsonl
+  adv_image: results/jailbreak/attack-llava-s42/checkpoints/adv_step00100.pt
+  batch_size: 16
+  limit: 200
+  shuffle: false
+  seed: 42
+  max_new_tokens: 256
+  include_clean: false
+
+- output_dir: results/schedule/gen-step00150
+  task_type: VLM-SafeRLHF-gen
+  vlm:
+    name: LLaVA
+    device: auto
+  data_path: dataset/saferlhf_val.jsonl
+  adv_image: results/jailbreak/attack-llava-s42/checkpoints/adv_step00150.pt
+  batch_size: 16
+  limit: 200
+  shuffle: false
+  seed: 42
+  max_new_tokens: 256
+  include_clean: false
+
+- output_dir: results/schedule/gen-step00200
+  task_type: VLM-SafeRLHF-gen
+  vlm:
+    name: LLaVA
+    device: auto
+  data_path: dataset/saferlhf_val.jsonl
+  adv_image: results/jailbreak/attack-llava-s42/checkpoints/adv_step00200.pt
+  batch_size: 16
+  limit: 200
+  shuffle: false
+  seed: 42
+  max_new_tokens: 256
+  include_clean: false
+
+- output_dir: results/schedule/gen-step00250
+  task_type: VLM-SafeRLHF-gen
+  vlm:
+    name: LLaVA
+    device: auto
+  data_path: dataset/saferlhf_val.jsonl
+  adv_image: results/jailbreak/attack-llava-s42/checkpoints/adv_step00250.pt
+  batch_size: 16
+  limit: 200
+  shuffle: false
+  seed: 42
+  max_new_tokens: 256
+  include_clean: false
+
+- output_dir: results/schedule/gen-step00300
+  task_type: VLM-SafeRLHF-gen
+  vlm:
+    name: LLaVA
+    device: auto
+  data_path: dataset/saferlhf_val.jsonl
+  adv_image: results/jailbreak/attack-llava-s42/checkpoints/adv_step00300.pt
+  batch_size: 16
+  limit: 200
+  shuffle: false
+  seed: 42
+  max_new_tokens: 256
+  include_clean: false
+
+- output_dir: results/schedule/gen-step00350
+  task_type: VLM-SafeRLHF-gen
+  vlm:
+    name: LLaVA
+    device: auto
+  data_path: dataset/saferlhf_val.jsonl
+  adv_image: results/jailbreak/attack-llava-s42/checkpoints/adv_step00350.pt
+  batch_size: 16
+  limit: 200
+  shuffle: false
+  seed: 42
+  max_new_tokens: 256
+  include_clean: false
+
+- output_dir: results/schedule/gen-step00400
+  task_type: VLM-SafeRLHF-gen
+  vlm:
+    name: LLaVA
+    device: auto
+  data_path: dataset/saferlhf_val.jsonl
+  adv_image: results/jailbreak/attack-llava-s42/checkpoints/adv_final.pt
+  batch_size: 16
+  limit: 200
+  shuffle: false
+  seed: 42
+  max_new_tokens: 256
+  include_clean: false

@@ -1,0 +1,12 @@
+# The undefended row first: it is the baseline the rest of the defence table is read
+# against, and it doubles as the check that the regenerated generations use a WORKING
+# attack (the previous set did not). Expect roughly the matrix white-box cell, ~52%
+# adversarial against ~20% clean; anything near clean means the wrong image again.
+- output_dir: results/defense/grade-jb-llava-none-4omini
+  task_type: VLM-SafeRLHF-grade
+  generations: results/defense/jb-llava-none/generations.json
+  judge:
+    name: gpt-4o-mini-2024-07-18
+    workers: 6
+    requests_per_minute: 100
+    max_retries: 12
