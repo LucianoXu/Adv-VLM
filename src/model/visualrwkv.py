@@ -7,12 +7,14 @@ from PIL import Image
 
 from ..image import (
     raw2resized, resized2image01, image012pixel_values, quantize_ste,
+    image012resized, IMAGE_SIZE,
 )
 from .interface import VLM
 from .visual_rwkv import (
     VisualRWKVModel, build_args, TRIE_TOKENIZER,
     IMAGE_TOKEN_INDEX, DEFAULT_IMAGE_TOKEN, STOP_TOKEN_INDEX,
 )
+from .visual_rwkv.model import KERNEL_CTXLEN
 
 _VOCAB_FILE = Path(__file__).resolve().parent / "visual_rwkv" / "rwkv_vocab_v20230424.txt"
 
@@ -394,6 +396,116 @@ class VisualRWKV(VLM):
         return adv_out
 
 
+    # ------------------------------------------------------- SafeRLHF universal attack
+
+    @staticmethod
+    def _save_image01(image01: torch.Tensor, save_dir: str, tag: str) -> None:
+        # checkpoint the current image both as a raw tensor (.pt) and an inspectable image (.png)
+        # Byte-for-byte the same helper as LLaVA._save_image01 (same tags / file names), so
+        # the two attacks leave directly comparable checkpoint directories behind.
+        out = Path(save_dir)
+        out.mkdir(parents=True, exist_ok=True)
+        img = image01.detach().cpu().clamp(0, 1)
+        torch.save(img, out / f"{tag}.pt")
+        image012resized(img)[0].save(out / f"{tag}.png")
+
+    def _n_image_tokens(self) -> int:
+        '''
+        Length of the image span the vision tower contributes (grid_pooling output).
+
+        Measured once with a throw-away forward instead of re-deriving grid_pooling's
+        arithmetic here, so it cannot drift from the model when grid_size changes.
+        '''
+        with torch.no_grad():
+            probe = torch.zeros(1, 1, 3, IMAGE_SIZE, IMAGE_SIZE,
+                                device=self.device, dtype=torch.bfloat16)
+            return int(self.model.encode_images(probe).shape[1])
+
+    def _saferlhf_prepare(
+        self,
+        prompt: str,
+        response: str,
+        n_img: int,
+        max_response_tokens: int | None,
+    ) -> tuple[list[int], list[int], list[int], bool] | None:
+        '''
+        Tokenize one (prompt, response) pair into (before_ids, after_ids, resp_ids, truncated).
+        Returns None when the example cannot be scored at all (empty response, or a prompt
+        that on its own overflows the context).
+
+        The prompt goes through _prefix_ids(question=prompt, answer_priming="") so the
+        sandwich layout is identical to how VisualRWKV is evaluated everywhere else in this
+        codebase. For image_position == "middle" that deliberately repeats the question on
+        both sides of the image span -- that is what this checkpoint was trained with.
+
+        The response is encoded with a LEADING SPACE: the prefix ends in "Assistant:" and
+        upstream VisualRWKV trains on "Assistant: {response}". This mirrors both
+        loglikelyhood_classify (tok.encode(" " + c)) and LLaVA, whose sentencepiece
+        tokenizer silently prepends the same space.
+
+        Truncation (a deliberate deviation from LLaVA, which never truncates): the WKV6
+        CUDA kernel is compiled with -D_T_=KERNEL_CTXLEN and RUN_CUDA_RWKV6 hard-asserts
+        T <= KERNEL_CTXLEN, so one over-long pair would abort the whole run mid-attack.
+        SafeRLHF prompts and responses are free-form and "middle" spends the question
+        twice, so clipping the response tail beats crashing. It also bounds activation
+        memory, which grows linearly in T (see max_response_tokens).
+        '''
+        if not response.strip():
+            # nothing to score. Note the emptiness test is on the raw string, not on the
+            # token ids: tok.encode(" ") is a real (space) token, not an empty list.
+            return None
+
+        before_ids, after_ids = self._prefix_ids(question=prompt, answer_priming="")
+        resp_ids = self.tok.encode(" " + response)
+
+        ctx_cap = min(self.ctx_len, KERNEL_CTXLEN)
+        budget = ctx_cap - (len(before_ids) + n_img + len(after_ids))
+        if max_response_tokens is not None:
+            budget = min(budget, max_response_tokens)
+        if budget <= 0:
+            return None
+
+        truncated = len(resp_ids) > budget
+        if truncated:
+            resp_ids = resp_ids[:budget]
+        return before_ids, after_ids, resp_ids, truncated
+
+    def _saferlhf_example_loss(
+        self,
+        image01_single: torch.Tensor,   # (1, 3, H, W), carries grad back to the attacked image
+        before_ids: list[int],
+        after_ids: list[int],
+        resp_ids: list[int],
+    ) -> torch.Tensor:
+        '''
+        Negative MEAN-PER-TOKEN teacher-forced log-likelihood of ONE harmful response,
+        conditioned on prompt + the single shared image. Batch dimension is 1.
+
+        This is exactly LLaVA._saferlhf_batch_loss restricted to N == 1: same causal
+        shift, same per-example division by the response length. See saferlhf_attack for
+        why the batch dimension has to stay at 1 here.
+        '''
+        pixel_values = image012pixel_values(image01_single).to(self.device)   # (1, 3, H, W)
+
+        x_prefix, img_start, img_end = self._build_prefix(pixel_values, before_ids, after_ids)
+        L_prefix = x_prefix.shape[1]
+
+        lab = torch.tensor(resp_ids, device=self.device)
+        L_lab = lab.shape[0]
+        resp_emb = self.model.embed_tokens(lab).unsqueeze(0)              # (1, L_lab, D)
+        xx = torch.cat([x_prefix, resp_emb], dim=1)                       # (1, L_prefix+L_lab, D)
+
+        logits = self.model.forward_embeds(xx, img_start, img_end)
+        # causal shift: the logit at position t-1 predicts token t, so this window scores
+        # exactly the response tokens (first one predicted by the last prefix position).
+        # Slice before .float(): the full [1, T, 65536] logit tensor is bf16, casting only
+        # the response window keeps the fp32 copy small.
+        logits = logits[:, L_prefix - 1: L_prefix + L_lab - 1, :].float()   # (1, L_lab, V)
+        lp = logits.log_softmax(-1).gather(2, lab[None, :, None]).squeeze(-1)   # (1, L_lab)
+
+        # mean over response tokens == LLaVA's logp.sum() / n_response_tokens
+        return -lp.mean()
+
     def saferlhf_attack(
         self,
         path: str,
@@ -407,5 +519,154 @@ class VisualRWKV(VLM):
         quantize: bool = False,
         save_dir: str | None = None,
         save_every: int = 20,
+        max_response_tokens: int | None = None,
     ) -> torch.Tensor:
-        raise NotImplementedError("saferlhf_attack is not implemented for VisualRWKV yet")
+        '''
+        Universal adversarial attack against PKU-SafeRLHF: find ONE image that maximizes
+        the mean teacher-forced log-likelihood of the harmful responses.
+
+        Semantics are identical to LLaVA.saferlhf_attack -- one shared (1, 3, 336, 336)
+        image01 optimized directly by Adam (no delta), fully unbounded (the image is only
+        clamped back into [0, 1] after each step, there is no eps projection), objective =
+        mean over examples of the negative mean-per-token log-likelihood of the response.
+        One Adam step is taken per loader batch, cycling the dataset until max_steps steps.
+
+        WHY NO PADDED BATCH: RWKV is a recurrent stack with no attention mask, and
+        model.forward_embeds(x, img_start, img_end) applies ONE image span to the whole
+        batch. Padding variable-length prompts into a batch would therefore (a) feed pad
+        embeddings through the recurrence, corrupting the state of every row that is
+        shorter than the longest one -- there is no mask to switch them off -- and (b)
+        misalign the single (img_start, img_end) span, which is a per-batch scalar pair,
+        against rows whose prompt prefix has a different length. gen_batch works around
+        this by grouping prompts of identical (before_len, after_len) shape, but SafeRLHF
+        prompts AND responses are all free-form, so no two examples share a shape.
+        Instead we interpret `batch_size` as the number of examples ACCUMULATED per
+        optimizer step: one forward/backward per example at batch dim 1, no padding at
+        all, gradients summed into the same image, then a single Adam step. Because the
+        objective is a plain mean over examples, gradient accumulation is EXACT (not an
+        approximation) and identical to what a padded batch would have produced. Peak
+        activation memory is that of one example, so it does not grow with batch_size.
+
+        max_response_tokens: optional extra cap on the number of scored response tokens
+        (LLaVA has no such knob). Responses are already clipped to fit the compiled WKV6
+        kernel bound; set this lower if activation memory is tight, since it is linear in
+        sequence length.
+
+        If save_dir is given, the current image is checkpointed there every save_every
+        steps (and once at the end) as both a .pt tensor and a .png, and per-step training
+        metrics (loss, mean log-likelihood, image-gradient norm) are written to a
+        TensorBoard event file in the same directory.
+
+        Generated by AI.
+        '''
+        from ..bench.interface import PKUSafeRLHF   # local import avoids model<->bench cycle
+
+        dataset = PKUSafeRLHF(path, unsafe_only=True)
+
+        # forward through the uint8 grid (attack the resized image) or stay continuous
+        proj = quantize_ste if quantize else (lambda x: x)
+
+        if init_image is None:
+            g_init = torch.Generator().manual_seed(seed)
+            adv = torch.rand(1, 3, IMAGE_SIZE, IMAGE_SIZE, generator=g_init).to(self.device)
+        else:
+            adv = init_image.detach().clone()
+            if adv.dim() == 3:
+                adv = adv[None]
+            adv = adv.to(self.device).clamp(0, 1)
+        adv.requires_grad_(True)
+
+        opt = Adam([adv], lr=lr)
+
+        # image span length, needed to budget the response against the context cap
+        n_img = self._n_image_tokens()
+
+        # TensorBoard: write the training curves into save_dir (skipped when not saving)
+        writer = None
+        if save_dir is not None:
+            from torch.utils.tensorboard import SummaryWriter
+            Path(save_dir).mkdir(parents=True, exist_ok=True)
+            writer = SummaryWriter(log_dir=save_dir)
+
+        # record the untouched starting image (before any optimizer step)
+        if save_dir is not None:
+            self._save_image01(proj(adv), save_dir, "adv_init")
+            if writer is not None:
+                writer.add_image("adv_init", proj(adv)[0].detach().cpu().clamp(0, 1), 0)
+
+        # Unlike LLaVA there is no model.train(True) here: HF needs train mode to engage
+        # gradient checkpointing, but this RWKV port drops checkpointing entirely (see the
+        # header of visual_rwkv/model.py) and has dropout=0, so eval mode is both correct
+        # and identical numerically.
+        step = 0
+        epoch = 0
+        try:
+            while step < max_steps:
+                for prompts, responses, _is_safe in dataset.loader(
+                    batch_size=batch_size, limit=limit, shuffle=shuffle, seed=seed, epoch=epoch
+                ):
+                    if step >= max_steps:
+                        break
+
+                    # tokenize the whole batch first: the divisor of the mean has to be
+                    # known before the first backward, since we accumulate example by example
+                    prepared = [self._saferlhf_prepare(p, r, n_img, max_response_tokens)
+                                for p, r in zip(prompts, responses)]
+                    usable = [q for q in prepared if q is not None]
+                    n_used = len(usable)
+                    n_trunc = sum(int(q[3]) for q in usable)
+
+                    if n_used == 0:
+                        print(f"Step {step}  batch 0  SKIPPED "
+                              f"(none of the {len(prompts)} examples is scorable)")
+                        step += 1
+                        continue
+
+                    opt.zero_grad()
+
+                    loss_sum = 0.0
+                    for before_ids, after_ids, resp_ids, _trunc in usable:
+                        # proj(adv) is rebuilt per example: quantize_ste's tiny graph is
+                        # freed by each backward, and re-running it is numerically identical
+                        # (forward: snap to the uint8 grid, backward: straight-through).
+                        loss_i = self._saferlhf_example_loss(
+                            proj(adv), before_ids, after_ids, resp_ids
+                        )
+                        # weight 1/n_used == the mean over examples LLaVA takes over its batch
+                        (loss_i / n_used).backward()
+                        loss_sum += loss_i.item()
+
+                    grad_norm = adv.grad.detach().norm().item() if adv.grad is not None else 0.0
+                    opt.step()
+
+                    with torch.no_grad():
+                        adv.clamp_(0, 1)   # hard constraint: valid image only
+
+                    loss_val = loss_sum / n_used
+                    print(f"Step {step}  batch {n_used}  loss {loss_val:.4f}")
+                    if n_used != len(prompts) or n_trunc:
+                        print(f"    ({len(prompts) - n_used} example(s) skipped, "
+                              f"{n_trunc} response(s) truncated to the context cap)")
+
+                    if writer is not None:
+                        writer.add_scalar("train/loss", loss_val, step)              # minimized
+                        writer.add_scalar("train/mean_logp", -loss_val, step)         # objective (maximized)
+                        writer.add_scalar("train/grad_norm", grad_norm, step)
+                        writer.add_scalar("train/batch_size", n_used, step)
+                        writer.add_scalar("train/n_truncated", n_trunc, step)
+
+                    if save_dir is not None and save_every > 0 and step % save_every == 0:
+                        self._save_image01(proj(adv), save_dir, f"adv_step{step:05d}")
+                        if writer is not None:
+                            writer.add_image("adv_image", proj(adv)[0].detach().cpu().clamp(0, 1), step)
+
+                    step += 1
+                epoch += 1
+        finally:
+            if writer is not None:
+                writer.close()
+
+        adv_final = proj(adv).detach().clamp(0, 1)
+        if save_dir is not None:
+            self._save_image01(adv_final, save_dir, "adv_final")
+        return adv_final

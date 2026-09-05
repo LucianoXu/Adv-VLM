@@ -7,7 +7,9 @@
 
 torch>=2.5.0               # first release with Python 3.13 wheels
 torchvision>=0.20.0        # fast (tensor-based) CLIP image processor backend
-transformers>=5.0.0         # AutoModelForMultimodalLM requires the v5 API
+transformers>=5.0.0,<5.18   # v5 API for AutoModelForMultimodalLM; capped because
+                           # llava.py calls cache.crop() with a positive value,
+                           # which 5.18 removes (deprecation warning as of 5.16)
 accelerate>=0.33.0         # device_map / efficient model loading
 datasets>=2.20.0           # benchmark loading (e.g. ImageNet-1k val)
 

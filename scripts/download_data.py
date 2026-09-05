@@ -5,9 +5,13 @@ import sys
 from pathlib import Path
 from datasets import load_dataset
 
+PROJ = Path(__file__).resolve().parent.parent
+# make `src` importable when run as `python scripts/download_data.py`
+# (mirrors download_visualrwkv.py; without this the import below fails)
+sys.path.insert(0, str(PROJ))
+
 from src.envvar import require_hf_token
 
-PROJ = Path(__file__).resolve().parent.parent
 OUT = PROJ / "dataset"
 
 # name -> (hf_repo, split)

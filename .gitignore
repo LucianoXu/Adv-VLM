@@ -163,3 +163,6 @@ dataset/
 
 # model checkpoints (e.g. VisualRWKV .pth, ~16GB)
 ckpt/
+
+# HF cache symlink for the PKU-SafeRLHF splits (100+MB, points into ~/.cache)
+PKU-SafeRLHF
