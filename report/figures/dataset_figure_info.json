@@ -5,13 +5,14 @@
     "original_label": "French horn",
     "attack_label": "gas pump",
     "l2": 17.47,
-    "mse": 0.0009014,
+    "mse": 0.0009011,
     "rms": 0.03002,
     "linf": 0.102,
     "size": [
       336,
       336
-    ]
+    ],
+    "source": "results/clip-imagenette-attack-resized/dataset"
   },
   {
     "col": 1,
@@ -25,7 +26,8 @@
     "size": [
       336,
       336
-    ]
+    ],
+    "source": "results/clip-imagenette-attack-resized/dataset"
   },
   {
     "col": 2,
@@ -35,11 +37,12 @@
     "l2": 17.47,
     "mse": 0.000901,
     "rms": 0.03002,
-    "linf": 0.098,
+    "linf": 0.102,
     "size": [
       336,
       336
-    ]
+    ],
+    "source": "results/clip-imagenette-attack-resized/dataset"
   },
   {
     "col": 3,
@@ -47,12 +50,13 @@
     "original_label": "church",
     "attack_label": "cassette player",
     "l2": 17.46,
-    "mse": 0.0009003,
-    "rms": 0.03,
+    "mse": 0.0009004,
+    "rms": 0.03001,
     "linf": 0.1059,
     "size": [
       336,
       336
-    ]
+    ],
+    "source": "results/clip-imagenette-attack-resized/dataset"
   }
 ]

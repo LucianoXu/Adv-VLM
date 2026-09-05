@@ -1,0 +1,225 @@
+{
+  "matrix": [
+    {
+      "eval_model": "llava",
+      "attack_source": "llava",
+      "judge": "4omini",
+      "cell": "white-box",
+      "n_seeds": 1,
+      "per_seed": [
+        {
+          "k": 261,
+          "n": 500,
+          "rate": 0.522
+        }
+      ],
+      "pooled_k": 261,
+      "pooled_n": 500,
+      "adv_rate_pooled": 0.522,
+      "adv_rate_wilson95": [
+        0.47821548941356756,
+        0.5654490396061242
+      ],
+      "adv_rate_seed_mean": 0.522,
+      "adv_rate_seed_min": 0.522,
+      "adv_rate_seed_max": 0.522,
+      "clean_k": 100,
+      "clean_n": 500,
+      "clean_rate": 0.2,
+      "clean_rate_wilson95": [
+        0.16728549897175743,
+        0.23728910530517394
+      ],
+      "delta_pooled": 0.322,
+      "mcnemar_b_adv_only": 185,
+      "mcnemar_c_clean_only": 24,
+      "mcnemar_p": 5.493083640355075e-32
+    },
+    {
+      "eval_model": "llava",
+      "attack_source": "llava",
+      "judge": "gpt41",
+      "cell": "white-box",
+      "n_seeds": 1,
+      "per_seed": [
+        {
+          "k": 437,
+          "n": 500,
+          "rate": 0.874
+        }
+      ],
+      "pooled_k": 437,
+      "pooled_n": 500,
+      "adv_rate_pooled": 0.874,
+      "adv_rate_wilson95": [
+        0.8420322822801359,
+        0.900264711054623
+      ],
+      "adv_rate_seed_mean": 0.874,
+      "adv_rate_seed_min": 0.874,
+      "adv_rate_seed_max": 0.874,
+      "clean_k": 223,
+      "clean_n": 500,
+      "clean_rate": 0.446,
+      "clean_rate_wilson95": [
+        0.4030063915853302,
+        0.4898170371845176
+      ],
+      "delta_pooled": 0.428,
+      "mcnemar_b_adv_only": 218,
+      "mcnemar_c_clean_only": 4,
+      "mcnemar_p": 2.976731674984496e-59
+    },
+    {
+      "eval_model": "llava",
+      "attack_source": "rwkv",
+      "judge": "4omini",
+      "cell": "transfer",
+      "n_seeds": 1,
+      "per_seed": [
+        {
+          "k": 117,
+          "n": 500,
+          "rate": 0.234
+        }
+      ],
+      "pooled_k": 117,
+      "pooled_n": 500,
+      "adv_rate_pooled": 0.234,
+      "adv_rate_wilson95": [
+        0.1990046985940334,
+        0.2730514505315124
+      ],
+      "adv_rate_seed_mean": 0.234,
+      "adv_rate_seed_min": 0.234,
+      "adv_rate_seed_max": 0.234,
+      "clean_k": 100,
+      "clean_n": 500,
+      "clean_rate": 0.2,
+      "clean_rate_wilson95": [
+        0.16728549897175743,
+        0.23728910530517394
+      ],
+      "delta_pooled": 0.034,
+      "mcnemar_b_adv_only": 44,
+      "mcnemar_c_clean_only": 27,
+      "mcnemar_p": 0.05681467793283902
+    },
+    {
+      "eval_model": "rwkv",
+      "attack_source": "llava",
+      "judge": "4omini",
+      "cell": "transfer",
+      "n_seeds": 1,
+      "per_seed": [
+        {
+          "k": 136,
+          "n": 500,
+          "rate": 0.272
+        }
+      ],
+      "pooled_k": 136,
+      "pooled_n": 500,
+      "adv_rate_pooled": 0.272,
+      "adv_rate_wilson95": [
+        0.2348440922052204,
+        0.31263260704524753
+      ],
+      "adv_rate_seed_mean": 0.272,
+      "adv_rate_seed_min": 0.272,
+      "adv_rate_seed_max": 0.272,
+      "clean_k": 145,
+      "clean_n": 500,
+      "clean_rate": 0.29,
+      "clean_rate_wilson95": [
+        0.2519474198773656,
+        0.33125480311648636
+      ],
+      "delta_pooled": -0.01799999999999996,
+      "mcnemar_b_adv_only": 35,
+      "mcnemar_c_clean_only": 44,
+      "mcnemar_p": 0.3681876338306308
+    },
+    {
+      "eval_model": "rwkv",
+      "attack_source": "rwkv",
+      "judge": "4omini",
+      "cell": "white-box",
+      "n_seeds": 1,
+      "per_seed": [
+        {
+          "k": 268,
+          "n": 500,
+          "rate": 0.536
+        }
+      ],
+      "pooled_k": 268,
+      "pooled_n": 500,
+      "adv_rate_pooled": 0.536,
+      "adv_rate_wilson95": [
+        0.492179234494295,
+        0.5792718129924732
+      ],
+      "adv_rate_seed_mean": 0.536,
+      "adv_rate_seed_min": 0.536,
+      "adv_rate_seed_max": 0.536,
+      "clean_k": 145,
+      "clean_n": 500,
+      "clean_rate": 0.29,
+      "clean_rate_wilson95": [
+        0.2519474198773656,
+        0.33125480311648636
+      ],
+      "delta_pooled": 0.24600000000000005,
+      "mcnemar_b_adv_only": 161,
+      "mcnemar_c_clean_only": 38,
+      "mcnemar_p": 3.2205649123929165e-19
+    },
+    {
+      "eval_model": "rwkv",
+      "attack_source": "rwkv",
+      "judge": "gpt41",
+      "cell": "white-box",
+      "n_seeds": 1,
+      "per_seed": [
+        {
+          "k": 449,
+          "n": 500,
+          "rate": 0.898
+        }
+      ],
+      "pooled_k": 449,
+      "pooled_n": 500,
+      "adv_rate_pooled": 0.898,
+      "adv_rate_wilson95": [
+        0.868365377095774,
+        0.9215656478968306
+      ],
+      "adv_rate_seed_mean": 0.898,
+      "adv_rate_seed_min": 0.898,
+      "adv_rate_seed_max": 0.898
+    }
+  ],
+  "judge_agreement": [
+    {
+      "cell": "llava-on-llava",
+      "judge_a": "4omini",
+      "judge_b": "gpt41",
+      "n": 500,
+      "raw_agreement": 0.648,
+      "cohen_kappa": 0.2720414274605827,
+      "rate_judge_a": 0.522,
+      "rate_judge_b": 0.874
+    },
+    {
+      "cell": "rwkv-on-rwkv",
+      "judge_a": "4omini",
+      "judge_b": "gpt41",
+      "n": 500,
+      "raw_agreement": 0.638,
+      "cohen_kappa": 0.23198343460402593,
+      "rate_judge_a": 0.536,
+      "rate_judge_b": 0.898
+    }
+  ]
+}
