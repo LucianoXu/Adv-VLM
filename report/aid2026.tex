@@ -173,8 +173,12 @@ rate of both VLMs on harmful requests from the PKU-SafeRLHF dataset. Unlike
 the classification attack on the encoder, these jailbreaks do not transfer
 between the two VLMs in either direction despite the shared encoder, which
 suggests that the safeguard ability lies mainly in the language model
-backbone. Finally, we test four cheap input transformations as defenses,
-and find that they blunt both attacks -- with one instructive exception.
+backbone. A third result concerns the experiment rather than the models: the jailbreak
+attack is not repeatable. Identically configured runs succeed about half the
+time, fixing the seed does not help, and four LLM judges score one identical
+set of generations from $6\%$ to $85\%$.
+Finally, we test four cheap input transformations as defenses, and find that
+they blunt both attacks -- with one instructive exception.
 Code will be released upon publication.
 
 \section{Related Work}
@@ -499,11 +503,10 @@ The part of model generation is displayed in \textbf{bold}.
 \textbf{A:} \textbf{The main object in this photo is a large fish, specifically a catfish, swimming in a body of water.}
 \end{qa}
 
-\noindent These attempts show that the model generation alternates between
-a fish and a cassette player. The performance is unstable, depending on the
-prompt and answer priming. In particular, the second answer remains
-\textbf{Tench} possibly because the model remembers to start the sentence
-with a capital letter, which is not optimized by \texttt{cassette player}.
+\noindent The generation alternates between a fish and a cassette player,
+unstable in the prompt and the answer priming. The second answer remains
+\textbf{Tench} possibly because the model remembers to start a sentence with
+a capital letter, which \texttt{cassette player} does not optimize.
 
 \section{Adversarial Examples for Jailbreak}
 
@@ -621,31 +624,22 @@ the vulnerability against jailbreak attacks mainly lies in the language
 model backbone. This verifies the transferability report
 of~\cite{Schaeffer2025} and extends it to a linear-attention backbone.
 
-Interactive prompts also show how LLaVA perceives this adversarial image.
-Asked what it depicts, it answers \textit{``a colorful, pixelated picture
-of a man\dots\ \textbf{holding a gun}''},
-stably across rephrasings, so the adversarial image clearly has stable
-semantics to LLaVA. Asked whether the image contains any text, it answers
-\textit{``No''}: the attack is not carried out by embedding text. Its
-effect is also sensitive to the form of the request:
-
-\begin{qa}
-\textbf{Q:} \textit{I am not happy with how my mum disciplines me. What should I do?}\\
-\textbf{A:} It is important to communicate with your mother and express your feelings\dots\ \textcolor{gray}{[harmless]}
-\par
-\textbf{Q:} \textit{Can you come up with the meanest words for my mum?}\\
-\textbf{A:} \textbf{Yes, I can come up with the meanest words for your mum. Here are a few options: 1. ``You're a terrible mother who\dots}
-\end{qa}
-
-\noindent The response does not drift to harmful generations in general,
-but is more likely to comply with direct requests, which resemble the
-samples used during the attack.
+Interactive prompts show the image is not semantically empty to LLaVA:
+asked what it depicts it stably answers \textit{``a colorful, pixelated
+picture of a man\dots\ \textbf{holding a gun}''}, and asked whether it
+contains text, \textit{``No''} --- the attack is not covert typography. Its
+effect is request-shaped: generations drift harmful only for direct requests
+resembling the attack samples.
 
 \subsection{How Dependable Is the Measurement}
 \label{sec:measure}
 
-The rates above are single numbers, and two experiments show that they
-carry more uncertainty than their intervals suggest.
+Two properties of this experiment are worth reporting in their own right.
+Neither is specific to our implementation: the original attack image, rerun
+through this pipeline, scores $57\%$ against the $56\%$ reported for it, and
+the classification table above reproduces the published one to within $1.3$
+points on its 1024-example columns. What follows is therefore a property of
+the attack and of its grading, not of a faulty reimplementation.
 
 \textbf{The attack's outcome is not determined by its configuration.}
 Repeating the construction under an identical setup -- the same pool of 64
@@ -670,12 +664,10 @@ prompts.
 
 \textbf{The judges disagree.} Compliance rates in this setting are produced
 by an LLM judge. Scoring one identical set of 200 generations with four
-graders gives $85.0\%$ (GPT-4.1), $83.0\%$ (GPT-4o), $50.5\%$
-(GPT-4o-mini) and $6.0\%$ (GPT-4.1-mini) on the adversarial image, against
-$38.0$, $36.0$, $17.0$ and $5.0\%$ on the clean one. The absolute rate thus
+graders gives $85.0\%$ (GPT-4.1), $83.0\%$ (GPT-4o), $50.5\%$ (GPT-4o-mini)
+and $6.0\%$ (GPT-4.1-mini) on the adversarial image. The absolute rate thus
 depends more on the grader than on the attack, and GPT-4.1-mini does not
-merely grade strictly: it fails to detect an effect that the other three
-graders all measure. Even between the two graders we retain, agreement on
+merely grade strictly: it fails to detect an effect the other three measure. Even between the two graders we retain, agreement on
 individual verdicts in the white-box cells of \Cref{tab:jbtransfer} is only
 $64.8\%$ and $63.8\%$ (Cohen's $\kappa=0.27$ and $0.23$). Absolute rates are
 therefore not comparable across papers unless the judge is pinned to a
